@@ -55,6 +55,7 @@ const IRREGULAR_PRESENT={
   bere:      ['bevo','bevi','beve','beviamo','bevete','bevono'],
   morire:    ['muoio','muori','muore','moriamo','morite','muoiono'],
   capire:    ['capisco','capisci','capisce','capiamo','capite','capiscono'],
+  pulire:    ['pulisco','pulisci','pulisce','puliamo','pulite','puliscono'],
   salire:    ['salgo','sali','sale','saliamo','salite','salgono'],
   preferire: ['preferisco','preferisci','preferisce','preferiamo','preferite','preferiscono'],
   /* أفعال -iare: لا تضعيف i عند نهاية -i أو -iamo */
