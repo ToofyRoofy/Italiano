@@ -227,8 +227,8 @@ function genArPastConj(verb,pIdx){
 }
 function getEndingType(verb){if(verb.it.endsWith('are'))return'are';if(verb.it.endsWith('ere'))return'ere';return'ire';}
 
-/* هل الفعل شاذ في التصريف الحاضر؟ يشمل IRREGULAR_SET + كل ما في IRREGULAR_PRESENT (مثل capire/salire) */
-function isIrregularPresent(verb){return IRREGULAR_SET.has(verb.it)||!!IRREGULAR_PRESENT[verb.it];}
+/* هل الفعل شاذ في التصريف الحاضر؟ فقط الأفعال التي لها تصريف خاص في IRREGULAR_PRESENT */
+function isIrregularPresent(verb){return !!IRREGULAR_PRESENT[verb.it];}
 /* هل الفعل شاذ في أي شيء (ماضي، مستقبل...)؟ */
 function isIrregularAny(verb){return IRREGULAR_ALL.has(verb.it);}
 
@@ -310,7 +310,7 @@ function buildSentence(verb,pIdx,tense,modSeed,compIdx){
 }
 
 /* ═══════════════════════════════════════ STATE ═════════════════════════════════════════ */
-let appState=null,session=null,currentItem=null,pickedMcq=null,waitingContinue=false;
+let appState=null,session=null,currentItem=null,pickedMcq=null,waitingContinue=false,retryMode=false;
 let sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
 let reviewActiveTab='today';
 
@@ -528,12 +528,27 @@ function buildReviewItem(verb,idx){return buildReviewItems(verb,idx)[idx%6];}
 function buildSession(){
   if(appState.inProgressSession&&appState.inProgressSession.queue){
     const s=appState.inProgressSession;
-    sessionStats=s.stats||{correct:0,wrong:0,improved:[],famChanges:{}};
-    return{
-      sessionIndex:s.sessionIndex,
-      verb:getVerb(DAILY_ORDER[s.sessionIndex]),
-      queue:s.queue,idx:s.idx,stageDone:s.stageDone
-    };
+    const VALID_TYPES=new Set(['mcq_ar','write_ar','write_it','mcq_conj','conj_drill','copy_it','it_to_ar','ar_to_it','fill_blank']);
+    /* Validate queue: كل item لازم يكون type صح وverb.it معروف */
+    const isValidQueue=Array.isArray(s.queue)&&s.queue.length>0&&
+      s.queue.every(item=>VALID_TYPES.has(item.type)&&item.verb&&typeof item.verb.it==='string'&&!!getVerb(item.verb.it));
+    if(isValidQueue){
+      /* Rehydrate verb references من live data لتجنب stale plain-object issues */
+      s.queue=s.queue.map(item=>{
+        const liveVerb=getVerb(item.verb.it);
+        if(!liveVerb)return item;
+        const r=Object.assign({},item,{verb:liveVerb});
+        if(item.sentence)r.sentence=Object.assign({},item.sentence);
+        return r;
+      });
+      sessionStats=s.stats||{correct:0,wrong:0,improved:[],famChanges:{}};
+      return{sessionIndex:s.sessionIndex,verb:getVerb(DAILY_ORDER[s.sessionIndex]),queue:s.queue,idx:s.idx,stageDone:s.stageDone};
+    }else{
+      /* Queue فاسدة أو من نسخة قديمة — امسحها وابدأ من أول */
+      console.warn('[italiano] Stale/invalid session queue — resetting');
+      appState.inProgressSession=null;
+      saveState();
+    }
   }
   const si=firstIncompleteIdx();
   if(si>=DAILY_ORDER.length)return null;
@@ -807,7 +822,7 @@ function patternTableHTML(endType,highlightPIdx){
 /* ═══════════════════════════════════════ RENDER QUESTION ═���═════════════════════════════ */
 function renderQuestion(){
   const item=session.queue[session.idx];
-  currentItem=item;pickedMcq=null;waitingContinue=false;
+  currentItem=item;pickedMcq=null;waitingContinue=false;retryMode=false;
   $('feedback-box').style.display='none';
   $('feedback-box').className='';
   $('main-btn').textContent='تحقق';
@@ -1053,7 +1068,7 @@ function handleMainAction(){
   if(!session||!currentItem)return;
   const item=currentItem;
   if(waitingContinue){advanceQuestion(true);return;}
-  /* من هنا: إجابة جديدة فعلاً، لم تُسجَّل بعد */
+  /* من هنا: إجابة جديدة فعلاً، لم تُسجَّل بعد — إلا لو retryMode (إعادة المحاولة لنفس السؤال) */
 
   let ok=false,expected='';
 
@@ -1154,7 +1169,7 @@ function handleMainAction(){
     expected=item._expected;
   }
 
-  recordAnswer(ok,item);
+  if(!retryMode)recordAnswer(ok,item);
   if(ok){
     markStageProgress(item);
     if(appState.settings.tts){
@@ -1191,8 +1206,13 @@ function handleMainAction(){
     const msg=`الإجابة الصحيحة: <b dir="ltr" style="font-size:16px">${expected}</b>`;
     showFeedback(false,'ليس تماماً',`<div class="example-box">${msg}</div>`);
     /* retry فقط لأسئلة التعلم — المراجعة تتقدم مباشرة */
-    if(item.type==='conj_drill'&&!item.review)return;
+    if(item.type==='conj_drill'&&!item.review){retryMode=true;return;}
     if(item.review){waitingContinue=true;$('main-btn').textContent='متابعة →';return;}
+    /* أسئلة الكتابة: تفعيل retry mode حتى لا تُسجَّل الإجابة مرتين */
+    if(!['mcq_ar','mcq_conj','conj_drill'].includes(item.type)&&!item.review){
+      retryMode=true;
+      return;
+    }
     /* MCQ غلط — إعادة خلط الخيارات وتمكين المحاولة من جديد */
     if(item.type==='mcq_ar'||item.type==='mcq_conj'){
       pickedMcq=null;
