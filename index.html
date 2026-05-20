@@ -227,8 +227,8 @@ function genArPastConj(verb,pIdx){
 }
 function getEndingType(verb){if(verb.it.endsWith('are'))return'are';if(verb.it.endsWith('ere'))return'ere';return'ire';}
 
-/* هل الفعل شاذ في التصريف الحاضر؟ فقط الأفعال التي لها تصريف خاص في IRREGULAR_PRESENT */
-function isIrregularPresent(verb){return !!IRREGULAR_PRESENT[verb.it];}
+/* هل الفعل شاذ في التصريف الحاضر؟ فقط الأفعال التي لها تصريف خاص في IRREGULAR_PRESENT — باستثناء شبه المنتظمة */
+function isIrregularPresent(verb){return !!IRREGULAR_PRESENT[verb.it]&&!SEMI_REGULAR.includes(verb.it);}
 /* هل الفعل شاذ في أي شيء (ماضي، مستقبل...)؟ */
 function isIrregularAny(verb){return IRREGULAR_ALL.has(verb.it);}
 
@@ -869,14 +869,16 @@ function renderQuestion(){
 
     html+=`<h2 class="q-title">اختر التصريف الصحيح مع <span dir="ltr" style="color:var(--blue)">${pr.it}</span></h2>`;
 
-    if(isIrreg){
+    /* isc verbs (capire/preferire/pulire) تعامل كشبه منتظمة حتى لو في IRREGULAR_PRESENT */
+    const isIscVerb=['capire','preferire','pulire'].includes(item.verb.it);
+    if(isIrreg&&!isIscVerb){
       html+=`<div class="irreg-note">⚠️ فعل شاذ — النمط القياسي لا ينطبق عليه<br>تعرّف على تصريفه مباشرة</div>`;
       html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
     }else{
-      if(isSemi){
+      if(isSemi||isIscVerb){
         /* تمييز بين نوعين مختلفين من شبه المنتظم */
-        const isIscVerb=['capire','preferire','pulire'].includes(item.verb.it);
-        if(isIscVerb){
+        const isIscVerb2=isIscVerb;
+        if(isIscVerb2){
           const iscRoot=item.verb.it.replace(/ire$/,'');
           const noi=iscRoot+'iamo', voi=iscRoot+'ite';
           html+=`<div class="note-box">💡 فعل <b>-isc-</b> — يُضيف <b dir="ltr">-isc-</b> قبل النهاية مع io/tu/lui/loro<br>
