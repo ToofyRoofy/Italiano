@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Italiano Daily v6</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#4caf50;--green-dk:#388e3c;--blue:#1976d2;--blue-lt:#e3f2fd;
+  --red:#e53935;--red-lt:#ffebee;--gold:#f9a825;--purple:#7b1fa2;
+  --orange:#e65100;--teal:#00796b;--bg:#f5f7fa;--card:#ffffff;
+  --text:#1a1a2e;--muted:#6b7280;--border:#e5e7eb;
+  --seen:#bdbdbd;--familiar:#42a5f5;--comfortable:#66bb6a;
+  --strong:#ffa726;--automatic:#ab47bc;--sealed:#7b1fa2;--locked:#9e9e9e;
+}
+*{box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Cairo',sans-serif;margin:0;background:var(--bg);display:flex;justify-content:center;min-height:100vh;direction:rtl;}
+#app{width:100%;max-width:480px;height:100dvh;background:var(--card);display:flex;flex-direction:column;position:relative;}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;gap:8px;padding:10px 14px;height:52px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--card);}
+.progress-wrap{flex:1;height:10px;background:#e5e7eb;border-radius:10px;overflow:hidden;}
+#progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green),#81c784);border-radius:10px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+.icon-btn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 6px;border-radius:8px;line-height:1;}
+.icon-btn:hover{background:#f3f4f6;}
+
+/* ── SCREENS ── */
+#game-area{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.screen{display:none;flex-direction:column;padding:14px;}
+.screen.active{display:flex;}
+
+/* ── HOME ── */
+.home-top{text-align:center;padding:16px 0 12px;}
+.app-title{font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.current-verb{font-size:36px;font-weight:900;color:var(--blue);direction:ltr;line-height:1;}
+.current-meaning{font-size:15px;color:var(--muted);margin-top:4px;}
+.stage-info{display:inline-block;background:var(--blue-lt);color:var(--blue);font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;margin-top:6px;}
+
+.mem-block{background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;}
+.mem-label{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:6px;}
+.mem-bar-wrap{height:8px;background:#e5e7eb;border-radius:8px;overflow:hidden;}
+.mem-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--teal));border-radius:8px;transition:width .5s ease;}
+.fam-badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;margin-top:6px;}
+
+.session-meta{text-align:center;font-size:13px;color:var(--muted);margin:4px 0 10px;}
+
+/* verb map */
+.verb-map{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 12px;padding:10px;background:#f8f9fa;border-radius:14px;max-height:260px;overflow-y:auto;}
+.vdot{border-radius:10px;padding:6px 8px;font-size:11px;font-weight:700;color:#fff;text-align:center;direction:ltr;transition:transform .2s;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;}
+.vdot.vcurrent{box-shadow:0 0 0 3px var(--blue);transform:scale(1.03);}
+.vdot.vlocked{opacity:.45;cursor:not-allowed;}
+.fam-seen{background:var(--seen);color:#fff;}
+.fam-familiar{background:var(--familiar);}
+.fam-comfortable{background:var(--comfortable);}
+.fam-strong{background:var(--strong);color:#333;}
+.fam-automatic{background:var(--automatic);}
+.fam-sealed{background:var(--sealed);}
+
+.fam-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:10px;}
+.fam-leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+.fam-leg-dot{width:10px;height:10px;border-radius:50%;}
+
+.toggle-row{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--muted);margin:6px 0;}
+
+.start-btn{width:100%;padding:17px;background:var(--green);color:#fff;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 var(--green-dk);font-family:'Cairo',sans-serif;margin-top:4px;transition:transform .1s;}
+.start-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--green-dk);}
+.reset-btn{width:100%;padding:12px;background:none;color:var(--muted);border:2px solid var(--border);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Cairo',sans-serif;margin-top:8px;}
+
+/* ── SESSION ── */
+.stage-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:800;margin-bottom:10px;}
+.badge-learn{background:var(--purple);color:#fff;}
+.badge-review{background:var(--gold);color:#333;}
+
+h2.q-title{font-size:16px;color:var(--text);text-align:center;margin:4px 0 12px;font-weight:700;}
+.word-card{font-size:26px;font-weight:800;color:var(--blue);padding:20px 16px;border:2px solid var(--border);border-radius:16px;text-align:center;margin-bottom:12px;background:#fafbff;direction:ltr;cursor:pointer;user-select:none;}
+.word-card-ar{direction:rtl;color:var(--text);font-size:20px;}
+.pronoun-pill{display:inline-block;background:var(--text);color:#fff;padding:6px 18px;border-radius:12px;font-size:17px;font-weight:700;direction:ltr;margin-bottom:10px;}
+
+#write-input{width:100%;padding:14px 16px;font-size:17px;font-weight:600;text-align:center;border:2px solid var(--border);border-radius:14px;outline:none;direction:ltr;font-family:'Cairo',sans-serif;background:#fafafa;transition:border-color .2s;}
+#write-input:focus{border-color:var(--blue);background:#fff;}
+
+.mcq-grid{display:grid;gap:9px;margin-top:6px;}
+.mcq-opt{padding:13px 16px;border:2px solid var(--border);border-radius:12px;text-align:center;font-weight:700;cursor:pointer;background:#fff;font-size:14px;transition:border-color .15s,background .15s;}
+.mcq-opt:hover{border-color:var(--blue);background:var(--blue-lt);}
+.mcq-opt.picked{border-color:var(--blue);background:var(--blue-lt);}
+.mcq-opt.correct-pick{border-color:var(--green);background:#e8f5e9;pointer-events:none;}
+.mcq-opt.wrong-pick{border-color:var(--red);background:var(--red-lt);pointer-events:none;}
+
+/* pattern table */
+.pattern-section{background:#f8f9fa;border-radius:14px;padding:12px;margin-bottom:10px;}
+.pattern-section h3{text-align:center;font-size:13px;color:var(--muted);margin:0 0 8px;font-weight:700;}
+.pattern-table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;}
+.pattern-table th{background:var(--text);color:#fff;padding:6px 8px;text-align:center;font-weight:700;}
+.pattern-table td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);}
+.pattern-table tr:last-child td{border-bottom:none;}
+.pattern-table .highlight-col{background:#e8f5e9;font-weight:700;color:var(--green-dk);}
+.pattern-table .type-col{background:#e3f2fd;font-weight:700;color:var(--blue);}
+.pattern-hint-big{text-align:center;font-size:22px;font-weight:800;color:var(--purple);direction:ltr;margin:8px 0;}
+.note-box{background:#fff8e1;border:2px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13px;color:#5d4037;text-align:center;margin-bottom:10px;}
+.irreg-note{background:#f3e5f5;border:2px solid var(--purple);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--purple);text-align:center;margin-bottom:10px;}
+.conj-form-hint{font-size:13px;color:var(--muted);text-align:center;margin:4px 0 8px;direction:ltr;}
+
+/* phase badge */
+.phase-badge{display:inline-block;background:#e8f5e9;color:var(--green-dk);font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;margin-bottom:8px;}
+
+/* feedback */
+#feedback-box{display:none;padding:14px;border-radius:14px;margin-top:10px;border:2px solid transparent;animation:slideIn .25s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.fb-correct{background:#e8f5e9;border-color:var(--green);color:#1b5e20;}
+.fb-wrong{background:var(--red-lt);border-color:var(--red);color:#b71c1c;}
+.fb-icon{font-size:18px;margin-left:6px;}
+.example-box{margin-top:8px;padding:10px 12px;background:rgba(255,255,255,.8);border-radius:10px;direction:ltr;text-align:left;font-size:14px;font-weight:600;cursor:pointer;}
+.example-ar{display:block;direction:rtl;text-align:right;color:#555;font-size:12px;margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,0,0,.1);}
+
+/* footer */
+.footer{height:68px;display:flex;align-items:center;padding:0 14px;flex-shrink:0;border-top:1px solid var(--border);background:var(--card);}
+.check-btn{flex:1;padding:14px;border:none;border-radius:14px;background:var(--green);color:#fff;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 var(--green-dk);font-family:'Cairo',sans-serif;transition:transform .1s;}
+.check-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--green-dk);}
+.check-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+
+/* ── NEW HOME ── */
+.splash-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px 20px;flex:1;}
+.splash-flag{font-size:48px;margin-bottom:8px;}
+.splash-title{font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:20px;}
+.splash-progress-wrap{width:100%;height:10px;background:#e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:6px;}
+.splash-progress-fill{height:100%;background:linear-gradient(90deg,var(--green),#81c784);border-radius:10px;transition:width .5s;}
+.splash-progress-label{font-size:12px;color:var(--muted);text-align:center;margin-bottom:28px;}
+.splash-verb{font-size:34px;font-weight:900;color:var(--blue);direction:ltr;margin-bottom:4px;}
+.splash-verb-ar{font-size:16px;color:var(--muted);margin-bottom:24px;}
+.primary-btn{width:100%;padding:18px;background:var(--green);color:#fff;border:none;border-radius:16px;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 var(--green-dk);font-family:'Cairo',sans-serif;margin-bottom:12px;transition:transform .1s;}
+.primary-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--green-dk);}
+.secondary-btn{width:100%;padding:15px;background:var(--blue-lt);color:var(--blue);border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;margin-bottom:12px;transition:transform .1s;}
+.secondary-btn:active{transform:translateY(1px);}
+.details-link{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:'Cairo',sans-serif;padding:8px;text-decoration:underline;}
+.due-badge{display:inline-block;background:var(--red-lt);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-right:6px;}
+
+/* end screen */
+.end-hero{text-align:center;padding:20px 0 16px;}
+.end-score{font-size:52px;font-weight:900;color:var(--blue);}
+.end-label{font-size:15px;color:var(--muted);}
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;}
+.stat-card{background:#f8f9fa;border-radius:14px;padding:14px;text-align:center;}
+.stat-card .sv{font-size:26px;font-weight:800;color:var(--blue);}
+.stat-card .sl{font-size:12px;color:var(--muted);}
+.end-detail{font-size:13px;color:var(--muted);line-height:2;margin:4px 0;}
+.end-detail b{color:var(--text);direction:ltr;display:inline-block;}
+.improved-list{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;justify-content:center;}
+.improved-chip{background:var(--blue-lt);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;direction:ltr;}
+
+/* ── REVIEW SCREEN ── */
+#screen-review{padding:0;}
+.review-header{padding:14px 14px 0;}
+.review-tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 14px 0;scrollbar-width:none;}
+.review-tabs::-webkit-scrollbar{display:none;}
+.rtab{flex-shrink:0;padding:7px 14px;border-radius:20px;border:2px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--muted);font-family:'Cairo',sans-serif;transition:all .2s;position:relative;}
+.rtab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.rtab.has-due{border-color:var(--green);color:var(--green-dk);}
+.rtab.has-due.active{background:var(--green);color:#fff;border-color:var(--green);}
+.rtab-count{display:inline-block;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:0 5px;margin-right:4px;min-width:16px;text-align:center;}
+.review-list{padding:10px 14px 20px;display:flex;flex-direction:column;gap:8px;}
+.rv-card{border-radius:14px;border:2px solid var(--border);background:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.rv-card.unlocked{cursor:pointer;border-color:var(--green);}
+.rv-card.unlocked:active{transform:scale(.98);}
+.rv-card.locked{opacity:.7;background:#f8f9fa;}
+.rv-icon{font-size:22px;flex-shrink:0;}
+.rv-body{flex:1;min-width:0;}
+.rv-verb{font-size:17px;font-weight:800;color:var(--blue);direction:ltr;}
+.rv-ar{font-size:13px;color:var(--muted);margin-top:1px;}
+.rv-meta{font-size:11px;margin-top:4px;font-weight:700;}
+.rv-meta.due{color:var(--green-dk);}
+.rv-meta.locked-time{color:var(--muted);}
+.rv-level{flex-shrink:0;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;color:#fff;}
+.review-empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.review-empty .big{font-size:40px;margin-bottom:8px;}
+.review-start-bar{padding:10px 14px 14px;border-top:1px solid var(--border);background:var(--card);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <button class="icon-btn" id="btn-home" style="display:none">🏠</button>
+    <div class="progress-wrap"><div id="progress-bar"></div></div>
+    <button class="icon-btn" id="btn-tts" title="نطق">🔊</button>
+  </div>
+  <div id="game-area">
+    <div id="screen-home" class="screen active"></div>
+    <div id="screen-session" class="screen">
+      <div id="question-container"></div>
+      <div id="feedback-box"></div>
+    </div>
+    <div id="screen-end" class="screen"></div>
+    <div id="screen-details" class="screen"></div>
+    <div id="screen-review" class="screen" style="padding:0;"></div>
+  </div>
+  <div class="footer" id="footer" style="display:none">
+    <button id="main-btn" class="check-btn">تحقق</button>
+  </div>
+</div>
+
+<script src="italiano_data.js"></script>
+<script>
+/* ═══════════════════════════════════════ HELPERS ════════════════════════════════════════ */
+function allVerbs(){return[...data.verbs.regular,...data.verbs.irregular];}
+function getVerb(it){return allVerbs().find(v=>v.it===it);}
+function $(id){return document.getElementById(id);}
+function pronounAt(i){return data.pronouns[i];}
+/* arPres arrays have 6 entries matching pIdx directly (io,tu,lui/lei,noi,voi,loro) */
+const AR_PRES_MAP=[0,1,2,3,4,5];
+function getArPres(verb,pIdx){return verb.arPres[AR_PRES_MAP[pIdx]]||verb.arPres[2];}
+
+/*
+  توليد تصريف الماضي العربي لكل ضمير من صيغة المضارع الغائب (هو).
+  - arPastRoot: الجذر المستخدم للتصريف (للأفعال المعتلة مثل قال→قل، عاد→عد، نام→نم)
+  - إذا لم يُحدَّد arPastRoot، يُستخدم arPast مباشرة
+  - الأفعال المنتهية بـ ى (قضى، اشترى): تُحوَّل ى→ي قبل إضافة اللواحق
+*/
+function genArPastConj(verb,pIdx){
+  const root=verb.arPastRoot||(verb.arPast.endsWith('ى')?verb.arPast.slice(0,-1)+'ي':verb.arPast);
+  /* لواحق التصريف: أنا، أنتَ، هو، نحن، أنتم، هم */
+  const sfx=['تُ','تَ','','نا','تُم','وا'];
+  if(pIdx===2){
+    /* هو/هي — نُرجع كلاهما للعرض */
+    return root+'/'+root+'ت';
+  }
+  return root+(sfx[pIdx]||'');
+}
+function getEndingType(verb){if(verb.it.endsWith('are'))return'are';if(verb.it.endsWith('ere'))return'ere';return'ire';}
+
+/* هل الفعل شاذ في التصريف الحاضر؟ يشمل IRREGULAR_SET + كل ما في IRREGULAR_PRESENT (مثل capire/salire) */
+function isIrregularPresent(verb){return IRREGULAR_SET.has(verb.it)||!!IRREGULAR_PRESENT[verb.it];}
+/* هل الفعل شاذ في أي شيء (ماضي، مستقبل...)؟ */
+function isIrregularAny(verb){return IRREGULAR_ALL.has(verb.it);}
+
+function getParticiple(verb,pIdx){
+  const base=verb.pastPart||(()=>{const root=verb.it.slice(0,-3),suf=verb.it.slice(-3);return root+(suf==='are'?'ato':suf==='ere'?'uto':'ito');})();
+  if(verb.aux!=='essere')return base;
+  /* تطابق الجنس والعدد مع الضمير */
+  if(pIdx===2)return base.slice(0,-1)+'o/a'; /* Lui/Lei → partito/a */
+  if(pIdx>=3)return base.slice(0,-1)+'i';    /* Noi, Voi, Loro → partiti */
+  return base;                               /* Io, Tu → partito */
+}
+function getConjugation(verb,pIdx,tense){
+  const root=verb.it.slice(0,-3),suf=verb.it.slice(-3);
+  const cIdx=data.pronouns[pIdx].conjIndex;
+  if(tense==='pres'){
+    /* الأولوية دائماً للـ irregular lookup (يشمل semi-irregular كـ capire وsalire) */
+    if(IRREGULAR_PRESENT[verb.it])return IRREGULAR_PRESENT[verb.it][cIdx];
+    return root+data.rules.pres[suf][cIdx];
+  }
+  if(tense==='fut'){return root+data.rules.fut[suf][cIdx];}
+  if(tense==='past'){
+    let part=getParticiple(verb,pIdx);
+    const aux=verb.aux==='essere'?data.rules.past_aux_essere[cIdx]:data.rules.past_aux_avere[cIdx];
+    return aux+' '+part;
+  }
+  return'';
+}
+function seededRandom(seed){const x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function pickModifier(seed){return seededRandom(seed)<0.35?MODIFIERS[Math.floor(seededRandom(seed+1)*MODIFIERS.length)]:''; }
+function buildSentence(verb,pIdx,tense,modSeed,compIdx){
+  const pr=data.pronouns[pIdx];
+  const conj=getConjugation(verb,pIdx,tense);
+  const mod=pickModifier(modSeed!=null?modSeed:verb.it.charCodeAt(0)+pIdx);
+
+  /* اختيار الـ complement: من VERB_COMPLEMENTS إن وجد، وإلا من verb.s القديم */
+  let compS, compAs;
+  if(compIdx!=null && VERB_COMPLEMENTS[verb.it]){
+    const c=getComplementForIdx(verb.it, compIdx);
+    compS = c ? c.s : verb.s;
+    compAs = c ? c.as : verb.as;
+  } else {
+    compS = verb.s;
+    compAs = verb.as;
+  }
+
+  let it=pr.it+' '+conj+' '+compS.trim();
+  if(mod)it=it.replace(/\.\s*$/,'')+' '+mod+'.';
+  /* للأفعال الناقصة (modal): تصريف المتمم العربي حسب الضمير */
+  const modalSet=new Set(['volere','potere','dovere','sapere']);
+  let arCompAs=compAs;
+  if(modalSet.has(verb.it)&&compAs.startsWith('أن ')){
+    /* arPres[pIdx] يحتوي فعل المتمم بصيغة هو — نحوله للضمير الصح */
+    /* arModalForms: حرف المضارعة لكل ضمير فقط (بدون أن) */
+    const arMudPrefix=['أ','ت','ي','ن','ت','ي'];
+    /* compAs مثلاً "أن يذهب إلى المنزل" — نستبدل حرف المضارعة (بعد "أن ") */
+    /* compAs.slice(3) = "يذهب إلى المنزل" → [0] = حرف المضارعة الأصلي */
+    const verbPart=compAs.slice(3); /* "يذهب إلى المنزل" */
+    const verbRoot=verbPart.slice(1); /* "ذهب إلى المنزل" — بعد حرف المضارعة */
+    arCompAs='أن '+arMudPrefix[pIdx]+verbRoot;
+  }
+  let ar=getArPres(verb,pIdx)+' '+arCompAs;
+  if(tense==='past')ar=genArPastConj(verb,pIdx)+' '+arCompAs;
+  if(mod)ar+=' '+(MOD_AR[mod]||mod);
+  return{it,ar,pronounIdx:pIdx,tense,compS,compAs};
+}
+
+/* ═══════════════════════════════════════ STATE ═════════════════════════════════════════ */
+let appState=null,session=null,currentItem=null,pickedMcq=null,waitingContinue=false;
+let sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+let reviewActiveTab='today';
+
+function defaultVp(){
+  return{
+    completedStages:{stage1:false,stage2:false,stage3:false,stage4:false,stage5:false,stage6:false},
+    completedLesson:false,
+    /* NEW Mastery system (addendum) */
+    masteryLevel:0,             /* 0..4 — رأيته → مختوم */
+    successfulReviews:0,
+    failedReviews:0,
+    currentInterval:1,          /* days */
+    nextReview:0,
+    lastReview:0,
+    lessonCompletedAt:0,
+    recentAnswers:[],           /* rolling window of last 10 answers (1=correct,0=wrong) */
+    /* legacy fields kept for UI compatibility (memory bar, decay, etc.) */
+    familiarity:0,familiarityLevel:'Seen',memoryStrength:0,
+    lastSeen:0,
+    weakPronouns:[],
+    weakTenses:['pres'],        /* FIX: only present is unlocked at start */
+    unlockedTenses:['pres'],
+    recallAccuracy:0,
+    currentTense:'pres',
+    interactionsHistory:[],totalCorrect:0,totalWrong:0,
+    conjugationPhase:1
+  };
+}
+function loadState(){
+  try{const r=localStorage.getItem(STORAGE_KEY);if(r)appState=JSON.parse(r);}catch(e){}
+  if(!appState)appState={verbProgress:{},settings:{tts:true},lastDecayDate:null,inProgressSession:null,shownBridgeNotes:{are:false,ere:false,ire:false}};
+  if(!appState.verbProgress)appState.verbProgress={};
+  if(!appState.settings)appState.settings={tts:true};
+  if(!appState.shownBridgeNotes)appState.shownBridgeNotes={are:false,ere:false,ire:false};
+  /* migrate any pre-mastery progress entries */
+  Object.keys(appState.verbProgress).forEach(k=>{
+    const vp=appState.verbProgress[k];const def=defaultVp();
+    for(const f of Object.keys(def)){if(vp[f]===undefined)vp[f]=def[f];}
+    if(!Array.isArray(vp.recentAnswers))vp.recentAnswers=[];
+    if(!Array.isArray(vp.unlockedTenses))vp.unlockedTenses=['pres'];
+    /* if old record had fake weakTenses for past/fut without unlocking them, fix it */
+    if(Array.isArray(vp.weakTenses)){
+      vp.weakTenses=vp.weakTenses.filter(t=>vp.unlockedTenses.includes(t));
+      if(vp.weakTenses.length===0)vp.weakTenses=['pres'];
+    }
+    if(vp.completedStages&&vp.completedStages.stage6&&!vp.completedLesson){vp.completedLesson=true;}
+    /* FIX: فعل اتعلم بس nextReview=0 → يتحسب من وقت إنهاء الدرس + الـ interval الصح */
+    if(vp.completedLesson&&vp.nextReview===0){
+      const base=vp.lessonCompletedAt>0?vp.lessonCompletedAt:Date.now();
+      const lv=MASTERY_LEVELS[Math.max(0,Math.min(4,vp.masteryLevel|0))];
+      vp.currentInterval=lv.days;
+      vp.nextReview=base+lv.days*86400000;
+    }
+  });
+  applyDecay();
+  saveState();
+}
+function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(appState));}
+function getVp(it){if(!appState.verbProgress[it])appState.verbProgress[it]=defaultVp();return appState.verbProgress[it];}
+
+/* معدل النسيان يتباطأ كلما زادت قوة الذاكرة */
+const DECAY_BY_LEVEL={
+  'Seen':10,'Familiar':7,'Comfortable':4,'Strong':2,'Automatic':1
+};
+
+function applyDecay(){
+  const today=new Date().toDateString();
+  if(appState.lastDecayDate===today)return;
+  const last=appState.lastDecayDate?new Date(appState.lastDecayDate):null;
+  const days=last?Math.max(1,Math.floor((Date.now()-last.getTime())/86400000)):1;
+  Object.keys(appState.verbProgress).forEach(it=>{
+    const vp=appState.verbProgress[it];
+    if(!vp.completedLesson)return; /* لا decay على الأفعال اللي لسه في التعلم */
+    const rate=DECAY_BY_LEVEL[vp.familiarityLevel]||5;
+    vp.memoryStrength=Math.max(0,vp.memoryStrength-rate*days);
+    updateFamLevel(vp);
+  });
+  appState.lastDecayDate=today;
+}
+function updateFamLevel(vp){
+  /* Mastery system: familiarity is just a visual mirror of masteryLevel for legacy UI bars */
+  const lv=Math.max(0,Math.min(4,vp.masteryLevel|0));
+  vp.familiarityLevel=MASTERY_LEVELS[lv].name;
+  vp.familiarity=[8,28,50,75,100][lv];
+}
+function scheduleReview(vp){
+  /* Ebbinghaus: بالضبط N يوم من لحظة المراجعة */
+  const lv=MASTERY_LEVELS[Math.max(0,Math.min(4,vp.masteryLevel|0))];
+  vp.currentInterval=lv.days;
+  vp.nextReview=Date.now()+lv.days*86400000;
+}
+function canUsePastFut(it){
+  const vp=getVp(it);
+  return Array.isArray(vp.unlockedTenses)&&(vp.unlockedTenses.includes('past')||vp.unlockedTenses.includes('fut'));
+}
+function famClass(vp){
+  const lv=vp.masteryLevel|0;
+  if(lv>=4)return'fam-sealed';
+  if(lv>=3)return'fam-strong';
+  if(lv>=2)return'fam-comfortable';
+  if(lv>=1)return'fam-familiar';
+  return'fam-seen';
+}
+function rollingAccuracy(vp){
+  const arr=vp.recentAnswers||[];
+  if(arr.length===0)return 0;
+  const ok=arr.reduce((a,b)=>a+(b?1:0),0);
+  return Math.round(ok/arr.length*100);
+}
+
+/* ═══════════════════════════════════════ SESSION BUILD ══════════════════════════════════ */
+function firstIncompleteIdx(){
+  for(let i=0;i<DAILY_ORDER.length;i++){const vp=getVp(DAILY_ORDER[i]);if(!vp.completedStages.stage6)return i;}
+  return DAILY_ORDER.length;
+}
+function verbsEligibleForReview(){
+  return DAILY_ORDER.filter(it=>getVp(it).completedStages.stage6).map(it=>getVerb(it)).filter(Boolean);
+}
+function countDueReviews(){
+  const now=Date.now();
+  /* صارم: فقط الأفعال التي حان موعد مراجعتها اليوم أو قبله */
+  return verbsEligibleForReview().filter(v=>getVp(v.it).nextReview<=now).length;
+}
+
+/*
+  ════════════════════════════════════════════════════════
+  buildLearnQueue: stages (v6 — 60 سؤال لكل فعل)
+  Stage 1:  6 (semantic anchor) — MCQ + كتابة
+  Stage 2:  6 (pattern recognition — كل الضمائر الستة)
+  Stage 3: 12 conj_drill (كل ضمير مرتين بتصريفات مختلفة)
+  Stage 4: 12 copy_it (نسخ مع complements متنوعة + شرح جرامر)
+  Stage 5: 12 it_to_ar (complements متنوعة)
+  Stage 6: 12 ar_to_it (complements متنوعة)
+  المجموع = 6+6+12+12+12+12 = 60 تعلم + مراجعة
+  ════════════════════════════════════════════════════════
+*/
+function buildLearnQueue(verb){
+  const q=[];
+  const ALL_P=[0,1,2,3,4,5];
+
+  /* Stage 1 — 6 interactions: Semantic Anchor */
+  q.push({type:'mcq_ar',  stage:1,verb});
+  q.push({type:'mcq_ar',  stage:1,verb});
+  q.push({type:'write_ar',stage:1,verb});
+  q.push({type:'write_ar',stage:1,verb});
+  q.push({type:'write_it',stage:1,verb});
+  q.push({type:'write_it',stage:1,verb});
+
+  /* Stage 2 — 6 interactions: Pattern Recognition (كل ضمير) */
+  ALL_P.forEach(pi=>q.push({type:'mcq_conj',stage:2,verb,pronounIdx:pi}));
+
+  /* Stage 3 — 12 interactions: conj_drill × 6 ثم fill_blank × 6 (نفس الضمائر، شكل مختلف) */
+  ALL_P.forEach(pi=>q.push({type:'conj_drill',stage:3,verb,pronounIdx:pi,tense:'pres'}));
+  ALL_P.forEach(pi=>{
+    const sent=buildSentence(verb,pi,'pres',seed+30+pi);
+    q.push({type:'fill_blank',stage:3,verb,pronounIdx:pi,tense:'pres',sentence:sent,_expected:getConjugation(verb,pi,'pres')});
+  });
+
+  /* Stage 4 — 12 interactions: Copy + شرح جرامر (complement مختلف لكل سؤال) */
+  ALL_P.forEach(pi=>q.push({type:'copy_it',stage:4,verb,pronounIdx:pi,
+    sentence:buildSentence(verb,pi,'pres',null,pi)}));
+  ALL_P.forEach(pi=>q.push({type:'copy_it',stage:4,verb,pronounIdx:pi,
+    sentence:buildSentence(verb,pi,'pres',null,pi+6)}));
+
+  /* Stage 5 — 12 interactions: IT → AR */
+  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,
+    sentence:buildSentence(verb,pi,'pres',null,pi+2)}));
+  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,
+    sentence:buildSentence(verb,pi,'pres',null,pi+5)}));
+
+  /* Stage 6 — 12 interactions: AR → IT */
+  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,
+    sentence:buildSentence(verb,pi,'pres',null,pi+1)}));
+  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,
+    sentence:buildSentence(verb,pi,'pres',null,pi+4)}));
+
+  return q;
+}
+
+/*
+  buildReviewItems — يرجع array من 6 أسئلة (ضمير لكل فاعل)
+  نوع السؤال يتنوع: fill_blank / ar_to_it / it_to_ar / conj_drill
+*/
+function buildReviewItems(verb,baseIdx){
+  const vp=getVp(verb.it);
+  const items=[];
+  const seed=verb.it.length+baseIdx;
+  const typeRota=['fill_blank','ar_to_it','it_to_ar','fill_blank','ar_to_it','conj_drill'];
+  for(let pIdx=0;pIdx<6;pIdx++){
+    const ci=data.pronouns[pIdx].conjIndex;
+    const isWeak=vp.weakPronouns.includes(ci);
+    const lowRecall=vp.recallAccuracy<60;
+    let type=typeRota[pIdx];
+    if(isWeak)type='conj_drill';
+    else if(lowRecall&&type==='fill_blank')type='ar_to_it';
+    /* استخدام complement مختلف لكل ضمير في المراجعة */
+    const sent=buildSentence(verb,pIdx,'pres',null,pIdx+baseIdx*6);
+    if(type==='conj_drill'){
+      items.push({type:'conj_drill',stage:'review',verb,pronounIdx:pIdx,tense:'pres',review:true});
+    }else if(type==='ar_to_it'){
+      const s2=buildSentence(verb,pIdx,'pres',null,pIdx+baseIdx*6+3);
+      items.push({type:'ar_to_it',stage:'review',verb,sentence:s2,pronounIdx:pIdx,tense:'pres',review:true,_expected:s2.it});
+    }else if(type==='it_to_ar'){
+      items.push({type:'it_to_ar',stage:'review',verb,sentence:sent,pronounIdx:pIdx,tense:'pres',review:true});
+    }else{
+      items.push({type:'fill_blank',stage:'review',verb,sentence:sent,pronounIdx:pIdx,tense:'pres',review:true,_expected:getConjugation(verb,pIdx,'pres')});
+    }
+  }
+  return items;
+}
+/* للتوافق مع مراجعة الفعل الفردي من شاشة المراجعة */
+function buildReviewItem(verb,idx){return buildReviewItems(verb,idx)[idx%6];}
+
+function buildSession(){
+  if(appState.inProgressSession&&appState.inProgressSession.queue){
+    const s=appState.inProgressSession;
+    sessionStats=s.stats||{correct:0,wrong:0,improved:[],famChanges:{}};
+    return{
+      sessionIndex:s.sessionIndex,
+      verb:getVerb(DAILY_ORDER[s.sessionIndex]),
+      queue:s.queue,idx:s.idx,stageDone:s.stageDone
+    };
+  }
+  const si=firstIncompleteIdx();
+  if(si>=DAILY_ORDER.length)return null;
+  const verb=getVerb(DAILY_ORDER[si]);
+
+  /* 60 سؤال تعلم (6 مراحل) */
+  const queue=[...buildLearnQueue(verb)];
+
+  /* مراجعة ذكية — فقط الأفعال المستحقة اليوم، 6 أسئلة لكل فعل */
+  const now=Date.now();
+  const pool=verbsEligibleForReview()
+    .filter(v=>v.it!==verb.it && getVp(v.it).nextReview<=now)
+    .sort((a,b)=>getVp(a.it).nextReview-getVp(b.it).nextReview); /* الأقدم أولاً */
+  /* نأخذ أول فعلين مستحقين فقط → 12 سؤال مراجعة كحد أقصى */
+  for(let i=0;i<2;i++){if(!pool[i])break;buildReviewItems(pool[i],i).forEach(it=>queue.push(it));}
+
+  /* المجموع المستهدف: 60 تعلم + 12 مراجعة = 72 كحد أقصى */
+  return{sessionIndex:si,verb,queue,idx:0,stageDone:{}};
+}
+
+/* ═══════════════════════════════════════ ANSWER LOGIC ══════════════════════════════════ */
+function normalizeAr(s){
+  if(!s)return'';
+  return s.trim().replace(/[\u064B-\u065F\u0670]/g,'').replace(/^(ال)/,'').replace(/\s+/g,' ').toLowerCase();
+}
+function normalizeIt(s){
+  if(!s)return'';
+  return s.trim().toLowerCase().replace(/[.,!?؛؟]/g,'').replace(/\s+/g,' ');
+}
+function stripPronounIt(s,pronounIt){
+  const n=normalizeIt(s);const p=pronounIt.toLowerCase();
+  if(n.startsWith(p+' '))return n.slice(p.length+1).trim();
+  return n;
+}
+function checkItalianAnswer(input,expectedFull,pronounIt){
+  const a=normalizeIt(input),e=normalizeIt(expectedFull);
+  if(a===e)return true;
+  if(stripPronounIt(a,pronounIt)===stripPronounIt(e,pronounIt))return true;
+  /* قبول Lui أو Lei بدلاً من "Lui/Lei" + قبول partito أو partita (essere verbs) */
+  if(pronounIt.toLowerCase()==='lui/lei'){
+    const base=[e,e.replace('lui/lei','lui'),e.replace('lui/lei','lei')];
+    const expanded=[];
+    base.forEach(v=>{
+      expanded.push(v);
+      if(v.includes('o/a')){expanded.push(v.replace('o/a','o'),v.replace('o/a','a'));}
+    });
+    for(const ev of expanded){
+      if(a===ev)return true;
+      const pr2=ev.startsWith('lui')?'lui':ev.startsWith('lei')?'lei':pronounIt.toLowerCase();
+      if(stripPronounIt(a,pr2)===stripPronounIt(ev,pr2))return true;
+    }
+  }
+  return false;
+}
+const AR_SYN={'كرة قدم':'كرة القدم','كرة القدم':'كرة القدم','فيلم':'فيلماً','فيلما':'فيلماً'};
+function expandArVariants(text){
+  const n=normalizeAr(text);const set=new Set([n]);
+  Object.keys(AR_SYN).forEach(k=>{if(n.includes(k))set.add(n.replace(k,AR_SYN[k]));});
+  return set;
+}
+function checkArabicAnswer(input,verb,pIdx,tense){
+  const variants=new Set();const pi=pIdx==null?2:pIdx;
+  const p=data.pronouns[pi];
+  /* للضمير "هو/هي" نقبل كلاهما */
+  const pronounAlts=p.ar==='هو/هي'?['هو','هي','']:[p.ar,''];
+  if(tense==='past'){
+    const conj=genArPastConj(verb,pi);
+    /* إذا كان هو/هي: نقبل كلا الصيغتين */
+    const conjForms=conj.includes('/')?conj.split('/'):[ conj ];
+    pronounAlts.forEach(prAr=>{
+      const prefix=prAr?prAr+' ':'';
+      conjForms.forEach(cf=>{
+        expandArVariants(prefix+cf+' '+verb.as).forEach(v=>variants.add(v));
+        expandArVariants(prefix+cf).forEach(v=>variants.add(v));
+      });
+    });
+    expandArVariants(verb.arPast).forEach(v=>variants.add(v));
+  }else{
+    pronounAlts.forEach(prAr=>{
+      const prefix=prAr?prAr+' ':'';
+      expandArVariants(prefix+getArPres(verb,pi)+' '+verb.as).forEach(v=>variants.add(v));
+    });
+    expandArVariants(verb.ar).forEach(v=>variants.add(v));
+    expandArVariants(getArPres(verb,pi)).forEach(v=>variants.add(v));
+  }
+  const ans=normalizeAr(input);
+  for(const v of variants){
+    if(!v)continue;
+    /* قبول مطابقة تامة أو إذا كانت الإجابة تحتوي على الـ variant كاملاً (للحالات المركبة) */
+    if(ans===v)return true;
+    /* السماح بوجود الضمير كبادئة اختيارية */
+  }
+  /* قبول الكلمة الجذرية للفعل أو المعنى فقط إذا كانت طويلة كفاية (≥3 حروف) لتجنب false positives */
+  const core=normalizeAr(verb.as);
+  if(core&&core.length>=3&&ans===core)return true;
+  return false;
+}
+
+/* ═══════════════════════════════════════ RECORD ════════════════════════════════════════ */
+function recordAnswer(correct,item){
+  const vp=getVp(item.verb.it);
+  const lvBefore=vp.masteryLevel|0;
+  vp.lastSeen=Date.now();
+
+  /* Rolling accuracy window — keep only last 10 attempts */
+  if(!Array.isArray(vp.recentAnswers))vp.recentAnswers=[];
+  vp.recentAnswers.push(correct?1:0);
+  if(vp.recentAnswers.length>10)vp.recentAnswers=vp.recentAnswers.slice(-10);
+  vp.recallAccuracy=rollingAccuracy(vp);
+
+  if(correct){
+    sessionStats.correct++;
+    vp.totalCorrect++;
+    /* Memory bar still bumps for visual feedback, but mastery does NOT change here */
+    vp.memoryStrength=Math.min(100,vp.memoryStrength+10);
+    if(item.pronounIdx!=null){
+      const ci=data.pronouns[item.pronounIdx].conjIndex;
+      vp.weakPronouns=vp.weakPronouns.filter(x=>x!==ci);
+    }
+    if(item.tense&&vp.weakTenses&&vp.weakTenses.includes(item.tense)){
+      vp.weakTenses=vp.weakTenses.filter(t=>t!==item.tense);
+    }
+
+    /* Mastery progression ONLY happens on review items */
+    if(item.review){
+      vp.successfulReviews=(vp.successfulReviews||0)+1;
+      vp.lastReview=Date.now();
+      if(vp.masteryLevel<4)vp.masteryLevel=(vp.masteryLevel|0)+1;
+      scheduleReview(vp);
+    }
+  }else{
+    sessionStats.wrong++;
+    vp.totalWrong++;
+    vp.memoryStrength=Math.max(0,vp.memoryStrength-15);
+    if(item.pronounIdx!=null){
+      const ci=data.pronouns[item.pronounIdx].conjIndex;
+      if(!vp.weakPronouns.includes(ci))vp.weakPronouns.push(ci);
+    }
+    if(item.tense&&vp.unlockedTenses&&vp.unlockedTenses.includes(item.tense)&&!vp.weakTenses.includes(item.tense)){
+      vp.weakTenses.push(item.tense);
+    }
+    if(item.review){
+      vp.failedReviews=(vp.failedReviews||0)+1;
+      vp.lastReview=Date.now();
+      /* Drop one level (not to zero) and rebuild interval */
+      vp.masteryLevel=Math.max(0,(vp.masteryLevel|0)-1);
+      vp.successfulReviews=Math.max(0,(vp.successfulReviews||0)-1);
+      scheduleReview(vp);
+    }
+  }
+
+  updateFamLevel(vp);
+
+  /* Track session-level improvement chips */
+  if(correct){
+    if(!sessionStats.improved.includes(item.verb.it))sessionStats.improved.push(item.verb.it);
+    if(!sessionStats.famChanges)sessionStats.famChanges={};
+    if(!sessionStats.famChanges[item.verb.it]){
+      sessionStats.famChanges[item.verb.it]={beforeLv:lvBefore,afterLv:vp.masteryLevel|0};
+    }else{
+      sessionStats.famChanges[item.verb.it].afterLv=vp.masteryLevel|0;
+    }
+  }
+}
+
+function markStageProgress(item){
+  if(item.review||typeof item.stage!=='number')return;
+  const key='stage'+item.stage;
+  if(!session.stageDone[key])session.stageDone[key]=0;
+  session.stageDone[key]++;
+  const needed={stage1:6,stage2:6,stage3:12,stage4:12,stage5:12,stage6:12}[key]||1;
+  if(session.stageDone[key]>=needed){
+    const vp=getVp(session.verb.it);
+    vp.completedStages[key]=true;
+    /* After Stage 3: switch conjugation phase to plural pronouns in reviews
+       (no familiarity/mastery bump — that only comes from successful reviews) */
+    if(item.stage===3){
+      vp.conjugationPhase=2;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════ TTS ═══════════════════════════════════════════ */
+function speak(text){
+  if(!appState.settings.tts||!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  /* Lui/Lei لا تُنطق بشكل صحيح — استبدلها بـ Lui */
+  const cleanText=String(text).replace(/Lui\/Lei/g,'Lui');
+  const u=new SpeechSynthesisUtterance(cleanText);u.lang='it-IT';u.rate=0.9;
+  window.speechSynthesis.speak(u);
+}
+
+/* ═══════════════════════════════════════ UI HELPERS ════════════════════════════════════ */
+function showScreen(name){
+  ['screen-home','screen-session','screen-end','screen-details','screen-review'].forEach(id=>{
+    $(id).classList.toggle('active',id==='screen-'+name);
+  });
+  $('btn-home').style.display=(name==='home')?'none':'block';
+  $('footer').style.display=(name==='session')?'flex':'none';
+}
+
+function getMcqArOptions(verb){
+  const others=allVerbs().filter(v=>v.it!==verb.it);
+  const opts=[verb.ar];
+  const shuffledOthers=shuffle(others);
+  for(const o of shuffledOthers){
+    if(opts.length>=4)break;
+    if(!opts.includes(o.ar))opts.push(o.ar);
+  }
+  return shuffle(opts);
+}
+function getMcqConjOptions(verb,pIdx){
+  const correct=getConjugation(verb,pIdx,'pres');
+  const opts=new Set([correct]);
+  const otherIdxs=shuffle([0,1,2,3,4,5].filter(i=>i!==pIdx));
+  for(const wi of otherIdxs){
+    if(opts.size>=4)break;
+    opts.add(getConjugation(verb,wi,'pres'));
+  }
+  return shuffle([...opts]);
+}
+
+function stageBadge(item){
+  if(item.review)return'<span class="stage-badge badge-review">🔄 مراجعة</span>';
+  const labels={1:'المرحلة 1 — المعنى (6)',2:'المرحلة 2 — النمط (6)',3:'المرحلة 3 — التصريف (12)',4:'المرحلة 4 — النسخ (12)',5:'المرحلة 5 — إيطالي→عربي (12)',6:'المرحلة 6 — عربي→إيطالي (12)'};
+  return`<span class="stage-badge badge-learn">${labels[item.stage]||'تعلم'}</span>`;
+}
+
+/*
+  ════════════════════════════════════════════════════════
+  patternTableHTML — جدول النهايات الكامل
+  يعرض الثلاثة أعمدة (are/ere/ire) مع تمييز:
+  - عمود نوع الفعل الحالي (أزرق)
+  - خلية الضمير المطلوب (أخضر)
+  ════════════════════════════════════════════════════════
+*/
+function patternTableHTML(endType,highlightPIdx){
+  const cIdx=data.pronouns[highlightPIdx].conjIndex;
+  const rows=[
+    ['io','o','o','o'],
+    ['tu','i','i','i'],
+    ['lui/lei','a','e','e'],
+    ['noi','iamo','iamo','iamo'],
+    ['voi','ate','ete','ite'],
+    ['loro','ano','ono','ono']
+  ];
+  let html=`<table class="pattern-table">
+    <thead><tr><th>ضمير</th><th class="${endType==='are'?'type-col':''}">-are</th><th class="${endType==='ere'?'type-col':''}">-ere</th><th class="${endType==='ire'?'type-col':''}">-ire</th></tr></thead><tbody>`;
+  rows.forEach((r,ri)=>{
+    html+=`<tr>`;
+    r.forEach((c,ci2)=>{
+      if(ci2===0){html+=`<td style="font-weight:700;color:var(--text)">${c}</td>`;return;}
+      const colType=ci2===1?'are':ci2===2?'ere':'ire';
+      const isTarget=(ri===cIdx&&colType===endType);
+      const isTypeHighlight=(colType===endType&&!isTarget);
+      let cls=isTarget?'highlight-col':isTypeHighlight?'type-col':'';
+      html+=`<td${cls?` class="${cls}"`:''}>-${c}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table>`;
+  return html;
+}
+
+/* ═══════════════════════════════════════ RENDER QUESTION ═���═════════════════════════════ */
+function renderQuestion(){
+  const item=session.queue[session.idx];
+  currentItem=item;pickedMcq=null;waitingContinue=false;
+  $('feedback-box').style.display='none';
+  $('feedback-box').className='';
+  $('main-btn').textContent='تحقق';
+  $('main-btn').disabled=false;
+
+  const total=session.queue.length;
+  $('progress-bar').style.width=Math.round(session.idx/total*100)+'%';
+
+  const vp=getVp(item.verb.it);
+  let html=stageBadge(item);
+
+  /* Phase badge للمراجعات في Phase 2 */
+  if(item.review&&vp.conjugationPhase===2&&!item._ph1){
+    html+=`<div class="phase-badge">🔵 ضمائر الجمع</div>`;
+  }
+
+  /* ── MCQ_AR ── */
+  if(item.type==='mcq_ar'){
+    html+=`<h2 class="q-title">ما معنى هذا الفعل؟</h2>`;
+    html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
+    html+=`<div class="mcq-grid">`+getMcqArOptions(item.verb).map(o=>`<div class="mcq-opt" data-v="${o}">${o}</div>`).join('')+`</div>`;
+  }
+
+  /* ── WRITE_AR ── */
+  else if(item.type==='write_ar'){
+    html+=`<h2 class="q-title">اكتب المعنى بالعربي</h2>`;
+    html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
+    html+=`<input id="write-input" placeholder="المعنى بالعربي" autocomplete="off" autocorrect="off" spellcheck="false">`;
+  }
+
+  /* ── WRITE_IT ── */
+  else if(item.type==='write_it'){
+    html+=`<h2 class="q-title">اكتب الفعل بالإيطالي</h2>`;
+    html+=`<div class="word-card word-card-ar">${item.verb.ar}</div>`;
+    html+=`<input id="write-input" placeholder="infinitivo" autocomplete="off" autocorrect="off" spellcheck="false" dir="ltr">`;
+  }
+
+  /* ── MCQ_CONJ (Stage 2) ── */
+  else if(item.type==='mcq_conj'){
+    const endType=getEndingType(item.verb);
+    const isIrreg=isIrregularPresent(item.verb);
+    const isSemi=SEMI_REGULAR.includes(item.verb.it);
+    const pr=data.pronouns[item.pronounIdx];
+
+    html+=`<h2 class="q-title">اختر التصريف الصحيح مع <span dir="ltr" style="color:var(--blue)">${pr.it}</span></h2>`;
+
+    if(isIrreg){
+      html+=`<div class="irreg-note">⚠️ فعل شاذ — النمط القياسي لا ينطبق عليه<br>تعرّف على تصريفه مباشرة</div>`;
+      html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
+    }else{
+      if(isSemi){
+        /* تمييز بين نوعين مختلفين من شبه المنتظم */
+        const isIscVerb=['capire','preferire','pulire'].includes(item.verb.it);
+        if(isIscVerb){
+          const iscRoot=item.verb.it.replace(/ire$/,'');
+          const noi=iscRoot+'iamo', voi=iscRoot+'ite';
+          html+=`<div class="note-box">💡 فعل <b>-isc-</b> — يُضيف <b dir="ltr">-isc-</b> قبل النهاية مع io/tu/lui/loro<br>
+          <span dir="ltr" style="font-size:12px">${iscRoot} → ${iscRoot}<b>isc</b>o, ${iscRoot}<b>isc</b>i, ${iscRoot}<b>isc</b>e … ${iscRoot}<b>isc</b>ono</span><br>
+          <span style="font-size:11px;color:var(--muted)">لكن noi/voi: <span dir="ltr">${noi}, ${voi}</span> (بدون isc)</span></div>`;
+        }else{
+          html+=`<div class="note-box">💡 تغيير إملائي — يُضيف <b>h</b> قبل <b>-i</b> و<b>-e</b> للحفاظ على نطق آخر الجذر<br>
+          <span dir="ltr" style="font-size:12px">gio<b>c</b>are → gio<b>c</b>o, gio<b>ch</b>i, gio<b>ch</b>iamo (الكاف تبقى كاف)</span></div>`;
+        }
+      }
+      /* Arabic Bridge Note — تظهر مرة واحدة فقط لكل نوع نهاية */
+      if(!appState.shownBridgeNotes[endType]&&ARABIC_BRIDGE_NOTES[endType]){
+        html+=`<div class="note-box" style="border-color:var(--teal);background:#e0f7fa;color:#004d40">${ARABIC_BRIDGE_NOTES[endType]}</div>`;
+        appState.shownBridgeNotes[endType]=true;
+        saveState();
+      }
+      html+=`<div class="pattern-section">
+        <h3>جدول النهايات — الفعل ينتهي بـ <span dir="ltr" style="color:var(--blue)">-${endType}</span></h3>
+        ${patternTableHTML(endType,item.pronounIdx)}
+        <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:6px;direction:ltr">
+          الخلية الخضراء = الإجابة | العمود الأزرق = نوع فعلك
+        </p>
+      </div>`;
+    }
+    html+=`<p class="pattern-hint-big">${item.verb.it.replace(/(are|ere|ire)$/,'')}___</p>`;
+    html+=`<div class="mcq-grid">`+getMcqConjOptions(item.verb,item.pronounIdx).map(o=>`<div class="mcq-opt" data-v="${o}" dir="ltr">${o}</div>`).join('')+`</div>`;
+  }
+
+  /* ── CONJ_DRILL (Stage 3) ── */
+  else if(item.type==='conj_drill'){
+    const pr=pronounAt(item.pronounIdx);
+    const isIrreg=isIrregularPresent(item.verb);
+    const tense=item.tense||'pres';
+    const tenseLabel=tense==='pres'?'المضارع':tense==='past'?'الماضي':'المستقبل';
+    const conjForm=getConjugation(item.verb,item.pronounIdx,tense);
+    html+=`<h2 class="q-title">صرّف الفعل — ${tenseLabel}</h2>`;
+    const prSpoken=pr.it==='Lui/Lei'?'Lui':pr.it;
+    html+=`<div class="word-card" onclick="speak('${prSpoken} ${conjForm}')">${item.verb.it}</div>`;
+    if(isIrreg)html+=`<div class="irreg-note">⚠️ فعل شاذ</div>`;
+    html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${pr.it}</span></div>`;
+    html+=`<input id="write-input" placeholder="${pr.it} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
+    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
+    item._expected=pr.it+' '+conjForm;
+  }
+
+  /* ── COPY_IT (Stage 4) — يرى الجملة الإيطالية + معنى كل كلمة بالعربي، وينسخها بالإيطالي ── */
+  else if(item.type==='copy_it'){
+    const pr=data.pronouns[item.pronounIdx];
+    const conj=getConjugation(item.verb,item.pronounIdx,'pres');
+    /* استخراج الـ modifier إن وجد + الكائن */
+    const sentClean=item.sentence.it.replace(/\.$/,'');
+    /* نأخذ بقية الجملة بعد الفعل المصرف */
+    const afterVerb=sentClean.replace(pr.it+' '+conj+' ','').trim();
+    /* فصل الـ modifier عن الكائن */
+    let objectPart=afterVerb,modifierPart='';
+    for(const m of MODIFIERS){
+      if(afterVerb.endsWith(' '+m)){
+        modifierPart=m;
+        objectPart=afterVerb.slice(0,-m.length-1).trim();
+        break;
+      }
+    }
+    /* بناء جدول كلمة-بكلمة */
+    const wordPairs=[
+      {it:pr.it,ar:pr.ar},
+      {it:conj,ar:getArPres(item.verb,item.pronounIdx)}
+    ];
+    const compAs = item.sentence.compAs || item.verb.as;
+    if(objectPart)wordPairs.push({it:objectPart,ar:compAs});
+    if(modifierPart)wordPairs.push({it:modifierPart,ar:MOD_AR[modifierPart]||modifierPart});
+
+    const wordsHtml=wordPairs.map(w=>`
+      <div style="display:flex;flex-direction:column;align-items:center;padding:6px 10px;background:#fff;border-radius:10px;border:1px solid var(--border);min-width:60px">
+        <span dir="ltr" style="font-weight:800;color:var(--blue);font-size:15px">${w.it}<\/span>
+        <span style="font-size:11px;color:var(--muted);margin-top:2px">${w.ar}<\/span>
+      <\/div>`).join('');
+
+    /* شرح الجرامر — يبحث في GRAMMAR_NOTES */
+    const grammarNote = typeof getGrammarNote==='function' ? getGrammarNote(item.sentence.it) : null;
+    const grammarHtml = grammarNote
+      ? `<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;line-height:1.7;direction:rtl;text-align:right">${grammarNote}<\/div>`
+      : '';
+
+    const speakSent=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
+    html+=`<h2 class="q-title">انسخ الجملة بالإيطالي</h2>`;
+    html+=`<p style="text-align:center;font-size:12px;color:var(--muted);margin:0 0 8px">معنى كل كلمة موضح أسفلها — اكتب الجملة كاملة بالإيطالي</p>`;
+    html+=`<div class="word-card" onclick="speak('${speakSent}')" style="font-size:18px;padding:14px">🔊 ${item.sentence.it}</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#f8f9fa;padding:10px;border-radius:12px;margin-bottom:10px;direction:ltr">${wordsHtml}</div>`;
+    html+=grammarHtml;
+    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin:0 0 6px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
+    html+=`<input id="write-input" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="اكتب الجملة الإيطالية...">`;
+    item._expected=item.sentence.it;
+  }
+
+  /* ── IT_TO_AR (Stage 5) ── */
+  else if(item.type==='it_to_ar'){
+    html+=`<h2 class="q-title">ترجم إلى العربية</h2>`;
+    html+=`<div class="word-card" onclick="speak('${item.sentence.it}')">${item.sentence.it}</div>`;
+    html+=`<input id="write-input" placeholder="المعنى بالعربي" autocomplete="off" autocorrect="off" spellcheck="false">`;
+  }
+
+  /* ── AR_TO_IT (Stage 6) ── */
+  else if(item.type==='ar_to_it'){
+    html+=`<h2 class="q-title">اكتب بالإيطالي من الذاكرة</h2>`;
+    html+=`<div class="word-card word-card-ar">${item.sentence.ar}</div>`;
+    html+=`<p style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:6px">الضمير اختياري</p>`;
+    html+=`<input id="write-input" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="اكتب الجملة بالإيطالي...">`;
+    item._expected=item.sentence.it;
+  }
+
+  /* ── FILL_BLANK ── */
+  else if(item.type==='fill_blank'){
+    const sentIt=item.sentence.it;
+    const tense=item.sentence.tense||'pres';
+    const blank=getConjugation(item.verb,item.pronounIdx,tense);
+    const parts=sentIt.split(' ');
+    /* البحث عن الكلمة المطابقة للتصريف */
+    let bi=-1;
+    for(let i=1;i<parts.length;i++){if(normalizeIt(parts[i])===normalizeIt(blank)){bi=i;break;}}
+    if(bi===-1)bi=1; /* fallback */
+    const displayed=parts.map((w,i)=>i===bi?`<span style="background:var(--blue-lt);padding:0 8px;border-radius:6px;color:var(--blue);font-weight:800">______</span>`:w).join(' ');
+    html+=`<h2 class="q-title">أكمل الفراغ</h2>`;
+    html+=`<div class="word-card" style="font-size:18px;line-height:1.7">${displayed}</div>`;
+    html+=`<p style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:6px" dir="rtl">${item.sentence.ar}</p>`;
+    html+=`<input id="write-input" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="التصريف الصحيح...">`;
+    item._expected=blank;
+  }
+
+  $('question-container').innerHTML=html;
+
+  document.querySelectorAll('.mcq-opt').forEach(el=>{
+    el.onclick=()=>{
+      document.querySelectorAll('.mcq-opt').forEach(x=>x.classList.remove('picked'));
+      el.classList.add('picked');
+      pickedMcq=el.dataset.v;
+    };
+  });
+
+  const inp=$('write-input');
+  if(inp){
+    inp.onkeydown=e=>{if(e.key==='Enter')handleMainAction();};
+    setTimeout(()=>inp.focus(),80);
+  }
+}
+
+/* ═══════════════════════════════════════ FEEDBACK ══════════════════════════════════════ */
+function showFeedback(ok,msg,extraHtml){
+  const fb=$('feedback-box');
+  fb.className=ok?'fb-correct':'fb-wrong';
+  fb.innerHTML=`<span class="fb-icon">${ok?'✓':'✗'}</span> ${msg}`+(extraHtml||'');
+  fb.style.display='block';
+  $('main-btn').textContent=ok?'متابعة →':'حاول مجدداً';
+  waitingContinue=ok;
+}
+
+/* ═══════════════════════════════════════ ESSERE AGREEMENT ══════════════════════════════ */
+function checkEssereAgreement(input,verb,pIdx,tense){
+  if(tense!=='past'||verb.aux!=='essere')return true;
+  const part=getParticiple(verb,pIdx);
+  const n=normalizeIt(input);
+  if(part.includes('/')){
+    /* Lui/Lei — يقبل partito أو partita */
+    return part.split('/').some(p=>n.includes(p.trim()));
+  }
+  return n.includes(part);
+}
+
+/* ═══════════════════════════════════════ PATTERN REASONING ═════════════════════════════ */
+function getPatternReason(verb,pIdx){
+  const endType=getEndingType(verb);
+  const pr=data.pronouns[pIdx];
+  if(IRREGULAR_PRESENT[verb.it])return`فعل شاذ — التصريف يُحفظ مباشرة ⭐`;
+  const ending=data.rules.pres[endType][pr.conjIndex];
+  return`${pr.it} + فعل -${endType} → ينتهي بـ <b dir="ltr">-${ending}</b>`;
+}
+
+/* تحقق loose: المستخدم كتب الـ auxiliary الصحيح + جذر الـ participle لكن ربما agreement غلط */
+function checkEssereLoose(input,verb,pIdx){
+  const cIdx=data.pronouns[pIdx].conjIndex;
+  const aux=data.rules.past_aux_essere[cIdx];
+  const partRoot=getParticiple(verb,pIdx).slice(0,-1); /* مثلاً arrivat من arrivato */
+  const norm=normalizeIt(input);
+  return norm.includes(normalizeIt(aux))&&norm.includes(partRoot);
+}
+
+/* ═══════════════════════════════════════ HANDLE ACTION ═════════════════════════════════ */
+function handleMainAction(){
+  if(!session||!currentItem)return;
+  const item=currentItem;
+  if(waitingContinue){advanceQuestion(true);return;}
+  /* من هنا: إجابة جديدة فعلاً، لم تُسجَّل بعد */
+
+  let ok=false,expected='';
+
+  if(item.type==='mcq_ar'){
+    ok=pickedMcq===item.verb.ar;
+    expected=item.verb.ar;
+    if(!pickedMcq){showFeedback(false,'اختر إجابة أولاً','');return;}
+  }
+  else if(item.type==='mcq_conj'){
+    expected=getConjugation(item.verb,item.pronounIdx,'pres');
+    ok=pickedMcq===expected;
+    if(!pickedMcq){showFeedback(false,'اختر إجابة أولاً','');return;}
+  }
+  else if(item.type==='write_ar'){
+    const inp=$('write-input').value;
+    ok=normalizeAr(inp)===normalizeAr(item.verb.ar)||checkArabicAnswer(inp,item.verb,2,'pres');
+    expected=item.verb.ar;
+  }
+  else if(item.type==='write_it'){
+    ok=normalizeIt($('write-input').value)===normalizeIt(item.verb.it);
+    expected=item.verb.it;
+  }
+  else if(item.type==='conj_drill'){
+    const pr=pronounAt(item.pronounIdx);
+    const tense=item.tense||'pres';
+    expected=item._expected;
+    ok=checkItalianAnswer($('write-input').value.trim(),expected,pr.it);
+
+    /* ── ESSERE AGREEMENT — حالة ok=true لكن agreement غلط ── */
+    if(ok&&tense==='past'&&item.verb.aux==='essere'){
+      if(!checkEssereAgreement($('write-input').value,item.verb,item.pronounIdx,tense)){
+        const pr2=data.pronouns[item.pronounIdx];
+        const exp2=getParticiple(item.verb,item.pronounIdx);
+        recordAnswer(false,item);
+        showFeedback(false,`قريب جدًا! لكن مع <b>essere</b> الـ participle يجب أن يتفق مع الفاعل.`,
+          `<div class="example-box">${pr2.it} <b dir="ltr">${data.rules.past_aux_essere[pr2.conjIndex]} ${exp2}</b> ✓</div>`);
+        if(item.review){waitingContinue=true;$('main-btn').textContent='متابعة →';}
+        return;
+      }
+    }
+
+    /* ── ESSERE AGREEMENT — حالة ok=false لكن الفعل صح والـ agreement غلط ── */
+    if(!ok&&tense==='past'&&item.verb.aux==='essere'){
+      if(checkEssereLoose($('write-input').value,item.verb,item.pronounIdx)){
+        const pr2=data.pronouns[item.pronounIdx];
+        const exp2=getParticiple(item.verb,item.pronounIdx);
+        recordAnswer(false,item);
+        showFeedback(false,`قريب جدًا! الـ participle مع essere يجب أن يتفق مع الفاعل.`,
+          `<div class="example-box">${pr2.it} <b dir="ltr">${data.rules.past_aux_essere[pr2.conjIndex]} ${exp2}</b> ✓</div>`);
+        if(item.review){waitingContinue=true;$('main-btn').textContent='متابعة →';}
+        return;
+      }
+    }
+  }
+  else if(item.type==='copy_it'){
+    const pr=data.pronouns[item.pronounIdx];
+    expected=item._expected;
+    ok=checkItalianAnswer($('write-input').value,expected,pr.it);
+  }
+  else if(item.type==='ar_to_it'){
+    const pr=data.pronouns[item.pronounIdx];
+    expected=item._expected;
+    ok=checkItalianAnswer($('write-input').value,expected,pr.it);
+    /* essere loose check في ar_to_it */
+    if(!ok&&item.sentence.tense==='past'&&item.verb.aux==='essere'){
+      if(checkEssereLoose($('write-input').value,item.verb,item.pronounIdx)){
+        const pr2=data.pronouns[item.pronounIdx];
+        const exp2=getParticiple(item.verb,item.pronounIdx);
+        recordAnswer(false,item);
+        showFeedback(false,`قريب جدًا! الـ participle مع essere يجب أن يتفق مع الفاعل.`,
+          `<div class="example-box">${pr2.it} <b dir="ltr">${data.rules.past_aux_essere[pr2.conjIndex]} ${exp2}</b> ✓</div>`);
+        if(item.review){waitingContinue=true;$('main-btn').textContent='متابعة →';}
+        return;
+      }
+    }
+  }
+  else if(item.type==='it_to_ar'){
+    const ans = normalizeAr($('write-input').value);
+    /* أولاً: تطابق كامل مع دالة checkArabicAnswer */
+    ok = checkArabicAnswer($('write-input').value, item.verb, item.pronounIdx, item.sentence.tense);
+    /* ثانياً: قبول مرن — لازم يحتوي على تصريف الفعل العربي + كلمة محتوى (مش حروف عزل) */
+    if(!ok && ans.length > 3){
+      const verbFormAr = normalizeAr(getArPres(item.verb, item.pronounIdx));
+      const pastFormAr = normalizeAr(genArPastConj(item.verb, item.pronounIdx));
+      const hasVerb = ans.includes(verbFormAr) || ans.includes(pastFormAr);
+      /* كلمة محتوى = أي جزء من الجملة العربية يزيد عن 3 حروف، مش حروف ربط */
+      const stopWords = new Set(['في','من','على','إلى','مع','عن','كل','هذا','هذه']);
+      const sentParts = normalizeAr(item.sentence.ar).split(' ').filter(w=>w.length>3&&!stopWords.has(w));
+      const hasContent = sentParts.some(p=>ans.includes(p));
+      if(hasVerb && hasContent) ok = true;
+    }
+    expected = item.sentence.ar;
+  }
+  else if(item.type==='fill_blank'){
+    /* checkItalianAnswer تقبل الإجابة مع أو بدون الضمير */
+    ok=checkItalianAnswer($('write-input').value, item._expected,
+       data.pronouns[item.pronounIdx]?data.pronouns[item.pronounIdx].it:'');
+    expected=item._expected;
+  }
+
+  recordAnswer(ok,item);
+  if(ok){
+    markStageProgress(item);
+    if(appState.settings.tts){
+      let toSpeak;
+      if(item.type==='conj_drill'||item.type==='mcq_conj'){
+        const pr=data.pronouns[item.pronounIdx];
+        toSpeak=pr.it+' '+getConjugation(item.verb,item.pronounIdx,item.tense||'pres');
+      }else{
+        toSpeak=item.sentence?item.sentence.it:item.verb.it;
+      }
+      speak(toSpeak);
+    }
+    let extra='';
+    /* Pattern Reasoning للـ conj_drill في Stage 3 */
+    if(item.type==='conj_drill'&&item.stage===3){
+      const reason=getPatternReason(item.verb,item.pronounIdx);
+      extra=`<div class="example-box" style="direction:rtl;text-align:right;font-size:13px">💡 ${reason}</div>`;
+    }
+    if(item.sentence){
+      extra+=`<div class="example-box" onclick="speak('${item.sentence.it.replace(/'/g,"\\'")}')">${item.sentence.it}<span class="example-ar">${item.sentence.ar}</span></div>`;
+    }else if(item.type!=='mcq_ar'&&item.type!=='write_ar'){
+      extra+=`<div class="example-box" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
+    }
+    showFeedback(true,'أحسنت! 🎉',extra);
+    document.querySelectorAll('.mcq-opt').forEach(el=>{
+      if(el.dataset.v===expected)el.classList.add('correct-pick');
+      else if(el.classList.contains('picked'))el.classList.add('wrong-pick');
+    });
+  }else{
+    document.querySelectorAll('.mcq-opt').forEach(el=>{
+      if(el.dataset.v===expected)el.classList.add('correct-pick');
+      else if(el.classList.contains('picked'))el.classList.add('wrong-pick');
+    });
+    const msg=`الإجابة الصحيحة: <b dir="ltr" style="font-size:16px">${expected}</b>`;
+    showFeedback(false,'ليس تماماً',`<div class="example-box">${msg}</div>`);
+    /* retry فقط لأسئلة التعلم — المراجعة تتقدم مباشرة */
+    if(item.type==='conj_drill'&&!item.review)return;
+    if(item.review){waitingContinue=true;$('main-btn').textContent='متابعة →';return;}
+    /* MCQ غلط — إعادة خلط الخيارات وتمكين المحاولة من جديد */
+    if(item.type==='mcq_ar'||item.type==='mcq_conj'){
+      pickedMcq=null;
+      /* خلط الخيارات من جديد */
+      setTimeout(()=>{
+        const opts=document.querySelectorAll('.mcq-opt');
+        const parent=opts[0]&&opts[0].parentNode;
+        if(parent){
+          const arr=[...parent.children];
+          shuffle(arr).forEach(el=>parent.appendChild(el));
+          arr.forEach(el=>{
+            el.classList.remove('picked','wrong-pick','correct-pick');
+            el.onclick=()=>{
+              document.querySelectorAll('.mcq-opt').forEach(x=>x.classList.remove('picked'));
+              el.classList.add('picked');
+              pickedMcq=el.dataset.v;
+            };
+          });
+        }
+        $('main-btn').textContent='تحقق ✓';
+      },900);
+      return;
+    }
+  } /* نهاية else */
+}
+
+function advanceQuestion(wasCorrect){
+  /* في الـ review: لا retry حتى لو أخطأ — سؤال واحد فقط لكل فعل */
+  const isReviewItem=currentItem&&currentItem.review;
+  if(!wasCorrect&&currentItem&&currentItem.type==='conj_drill'&&!isReviewItem)return;
+  session.idx++;
+  appState.inProgressSession={
+    sessionIndex:session.sessionIndex,
+    queue:session.queue,
+    idx:session.idx,
+    stageDone:session.stageDone,
+    stats:sessionStats
+  };
+  saveState();
+  if(session.idx>=session.queue.length)finishSession();
+  else renderQuestion();
+}
+
+/* ═══════════════════════════════════════ HOME ══════════════════════════════════════════ */
+function renderHome(){
+  const si=firstIncompleteIdx();
+  const done=si>=DAILY_ORDER.length;
+  const verbIt=DAILY_ORDER[Math.min(si,DAILY_ORDER.length-1)];
+  const verb=getVerb(verbIt);
+  const due=countDueReviews();
+  const totalDone=DAILY_ORDER.filter(it=>getVp(it).completedStages.stage6).length;
+  const pct=Math.round(totalDone/DAILY_ORDER.length*100);
+
+  const dueTxt=due>0?`<span class="due-badge">${due} مراجعة مستحقة</span>`:'';
+
+  $('screen-home').innerHTML=`
+    <div class="splash-wrap">
+      <div class="splash-flag">🇮🇹</div>
+      <div class="splash-title">Italiano Daily</div>
+
+      <div class="splash-verb">${verb.it}</div>
+      <div class="splash-verb-ar">${verb.ar}</div>
+
+      <div class="splash-progress-wrap" style="max-width:300px">
+        <div class="splash-progress-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="splash-progress-label">${totalDone} / ${DAILY_ORDER.length} فعل مكتمل ${dueTxt}</div>
+
+      <button class="primary-btn" id="btn-start-today">${appState.inProgressSession?'▶ متابعة الجلسة':done?'🔄 مراجعة عامة':'🎯 الجلسة اليوم'}</button>
+      <button class="secondary-btn" id="btn-review-only">📅 جدول المراجعات${due>0?' ('+due+')':''}</button>
+      <button class="secondary-btn" id="btn-curriculum" style="background:#f3e5f5;color:var(--purple)">📚 المنهج والخطة</button>
+      <button class="details-link" id="btn-details">📊 تفاصيل التقدم</button>
+    </div>
+  `;
+
+  $('btn-start-today').onclick=startSession;
+  $('btn-review-only').onclick=()=>{reviewActiveTab='today';renderReviewScreen();showScreen('review');};
+  $('btn-curriculum').onclick=()=>{renderCurriculum();showScreen('details');};
+  $('btn-details').onclick=()=>{renderDetails();showScreen('details');};
+  $('progress-bar').style.width='0%';
+}
+
+function renderDetails(){
+  const si=firstIncompleteIdx();
+  const done=si>=DAILY_ORDER.length;
+  const verbIt=DAILY_ORDER[Math.min(si,DAILY_ORDER.length-1)];
+  const verb=getVerb(verbIt);
+  const vp=getVp(verb.it);
+  const due=countDueReviews();
+  const totalDone=DAILY_ORDER.filter(it=>getVp(it).completedStages.stage6).length;
+  const pct=Math.round(totalDone/DAILY_ORDER.length*100);
+
+  let stageLabel='مكتمل ✓';
+  if(!done){
+    for(let s=1;s<=6;s++){
+      if(!vp.completedStages['stage'+s]){
+        const stageNames={1:'المعنى',2:'النمط',3:'التصريف',4:'النسخ',5:'إيطالي→عربي',6:'عربي→إيطالي'};
+        stageLabel='المرحلة '+s+' — '+stageNames[s];
+        break;
+      }
+    }
+  }
+
+  const mapHtml=DAILY_ORDER.map((it,i)=>{
+    const p=getVp(it);
+    const isCurrent=(i===si&&!done);
+    const isLocked=(i>si)&&!p.completedStages.stage1;
+    let cls=famClass(p);
+    if(isLocked)cls='fam-seen vlocked';
+    return`<div class="vdot ${cls}${isCurrent?' vcurrent':''}" title="${it} — ${famLevelAr(p.familiarityLevel)}">${it}</div>`;
+  }).join('');
+
+  $('screen-details').innerHTML=`
+    <div style="padding:14px">
+      <div class="home-top">
+        <div class="app-title">التقدم التفصيلي</div>
+        <div class="current-verb">${verb.it}</div>
+        <div class="current-meaning">${verb.ar}</div>
+        <div class="stage-info">${stageLabel}</div>
+      </div>
+
+      <div class="mem-block">
+        <div class="mem-label">
+          <span>قوة الذاكرة — <b>${verb.it}</b></span>
+          <span>${vp.memoryStrength}%</span>
+        </div>
+        <div class="mem-bar-wrap"><div class="mem-bar-fill" style="width:${vp.memoryStrength}%"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--muted)">
+          <span>Familiarity: ${vp.familiarity}%</span>
+          <span class="fam-badge ${famClass(vp)}" style="font-size:11px;padding:1px 8px;border-radius:12px;background:${famColor(vp)};color:#fff">${famLevelAr(vp.familiarityLevel)}</span>
+        </div>
+      </div>
+
+      <p class="session-meta">
+        تقدم كلي: ${pct}% · 
+        مراجعات مستحقة: <b style="color:${due>0?'var(--red)':'var(--green)'}">${due}</b>
+      </p>
+
+      <div class="fam-legend">
+        ${FAM_LEVELS.map(l=>`<div class="fam-leg-item"><div class="fam-leg-dot" style="background:var(--${l.name.toLowerCase()})"></div>${l.nameAr}</div>`).join('')}
+      </div>
+
+      <div class="verb-map">${mapHtml}</div>
+
+      <div class="toggle-row">
+        <label><input type="checkbox" id="tts-toggle" ${appState.settings.tts?'checked':''}> 🔊 نطق عند الإجابة الصحيحة</label>
+      </div>
+    </div>
+  `;
+
+  $('tts-toggle').onchange=e=>{appState.settings.tts=e.target.checked;saveState();};
+}
+
+function startReviewSession(){
+  const now=Date.now();
+  /* صارم: فقط الأفعال التي حان موعدها الآن أو قبله */
+  const pool=verbsEligibleForReview()
+    .filter(v=>getVp(v.it).nextReview<=now)
+    .sort((a,b)=>{
+      const va=getVp(a.it),vb=getVp(b.it);
+      const sa=(va.memoryStrength<50?50:0)-va.memoryStrength;
+      const sb=(vb.memoryStrength<50?50:0)-vb.memoryStrength;
+      return sb-sa;
+    });
+  if(pool.length===0){alert('لا توجد أفعال مستحقة للمراجعة الآن! 🎉');return;}
+  const queue=[];
+  pool.slice(0,5).forEach((verb,i)=>buildReviewItems(verb,i).forEach(it=>queue.push(it)));
+  session={sessionIndex:-1,verb:pool[0],queue,idx:0,stageDone:{},isReviewOnly:true};
+  sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+  showScreen('session');
+  renderQuestion();
+}
+
+/* ═══════════════════════════════════════ REVIEW SCHEDULE SCREEN ══════════════════════════ */
+const REVIEW_TABS=[
+  {label:'اليوم',key:'today',days:0},
+  {label:'غداً',key:'tomorrow',days:1},
+  {label:'3 أيام',key:'d3',days:3},
+  {label:'7 أيام',key:'d7',days:7},
+  {label:'14 يوم',key:'d14',days:14},
+  {label:'30 يوم',key:'d30',days:30},
+];
+
+function getReviewBucket(vp){
+  const now=Date.now();
+  const diff=vp.nextReview-now; /* ms */
+  if(diff<=0)return'today';
+  const days=diff/86400000;
+  if(days<1)return'today';
+  if(days<2)return'tomorrow';
+  if(days<5)return'd3';
+  if(days<10)return'd7';
+  if(days<20)return'd14';
+  return'd30';
+}
+
+function renderReviewScreen(){
+  const now=Date.now();
+  /* بناء البيانات لكل تاب */
+  const buckets={today:[],tomorrow:[],d3:[],d7:[],d14:[],d30:[]};
+  verbsEligibleForReview().forEach(verb=>{
+    const vp=getVp(verb.it);
+    const b=getReviewBucket(vp);
+    buckets[b].push({verb,vp});
+  });
+
+  const dueCount=buckets.today.length;
+
+  /* بناء التابز */
+  const tabsHtml=REVIEW_TABS.map(t=>{
+    const cnt=buckets[t.key].length;
+    const isDue=t.key==='today';
+    const isActive=reviewActiveTab===t.key;
+    const cntBadge=cnt>0?`<span class="rtab-count">${cnt}</span>`:'';
+    let cls='rtab';
+    if(isActive)cls+=' active';
+    if(isDue&&cnt>0)cls+=' has-due';
+    return`<button class="${cls}" data-tab="${t.key}">${cntBadge}${t.label}</button>`;
+  }).join('');
+
+  /* بناء قايمة الأفعال للتاب الحالي */
+  const items=buckets[reviewActiveTab]||[];
+  const isToday=reviewActiveTab==='today';
+
+  let listHtml='';
+  if(items.length===0){
+    listHtml=`<div class="review-empty"><div class="big">🔒</div><div>لا توجد أفعال في هذه الفترة</div></div>`;
+  }else{
+    listHtml=items.map(({verb,vp})=>{
+      const isDue=vp.nextReview<=now;
+      const lvColor=famColor(vp);
+      const lvName=famLevelAr(vp.familiarityLevel);
+      if(isDue){
+        /* مستحق — قابل للنقر */
+        let metaStr='متاح للمراجعة الآن ✓';
+        return`<div class="rv-card unlocked" data-verb="${verb.it}">
+          <div class="rv-icon">📖</div>
+          <div class="rv-body">
+            <div class="rv-verb">${verb.it}</div>
+            <div class="rv-ar">${verb.ar}</div>
+            <div class="rv-meta due">${metaStr}</div>
+          </div>
+          <div class="rv-level" style="background:${lvColor}">${lvName}</div>
+        </div>`;
+      }else{
+        /* مقفول — اعرض الوقت */
+        const diff=vp.nextReview-now;
+        const hrs=Math.floor(diff/3600000);
+        const mins=Math.floor((diff%3600000)/60000);
+        const timeStr=hrs>0?`${hrs} ساعة`:mins>0?`${mins} دقيقة`:'قريباً';
+        return`<div class="rv-card locked">
+          <div class="rv-icon">🔒</div>
+          <div class="rv-body">
+            <div class="rv-verb">${verb.it}</div>
+            <div class="rv-ar">${verb.ar}</div>
+            <div class="rv-meta locked-time">يفتح بعد ${timeStr}</div>
+          </div>
+          <div class="rv-level" style="background:${lvColor}">${lvName}</div>
+        </div>`;
+      }
+    }).join('');
+  }
+
+  const startBarHtml=isToday&&dueCount>0
+    ?`<div class="review-start-bar"><button class="primary-btn" style="margin-bottom:0" id="rv-start-all">▶ مراجعة ${dueCount} فعل مستحق</button></div>`
+    :'';
+
+  $('screen-review').innerHTML=`
+    <div class="review-header">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">جدول المراجعات</div>
+    </div>
+    <div class="review-tabs">${tabsHtml}</div>
+    <div class="review-list" id="rv-list">${listHtml}</div>
+    ${startBarHtml}
+  `;
+
+  /* أحداث التابز */
+  document.querySelectorAll('.rtab').forEach(btn=>{
+    btn.onclick=()=>{reviewActiveTab=btn.dataset.tab;renderReviewScreen();};
+  });
+
+  /* أحداث الأفعال الفردية */
+  document.querySelectorAll('.rv-card.unlocked').forEach(card=>{
+    card.onclick=()=>{
+      const verbIt=card.dataset.verb;
+      const verb=getVerb(verbIt);
+      if(!verb)return;
+      const queue=buildReviewItems(verb,0);
+      session={sessionIndex:-1,verb,queue,idx:0,stageDone:{},isReviewOnly:true};
+      sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+      showScreen('session');
+      renderQuestion();
+    };
+  });
+
+  /* زرار "مراجعة كل المستحقين" */
+  const rvBtn=$('rv-start-all');
+  if(rvBtn)rvBtn.onclick=startReviewSession;
+}
+
+function famColor(vp){
+  if(vp.familiarity>=86)return'var(--sealed)';
+  if(vp.familiarity>=61)return'var(--strong)';
+  if(vp.familiarity>=36)return'var(--comfortable)';
+  if(vp.familiarity>=16)return'var(--familiar)';
+  return'var(--seen)';
+}
+
+/* ═══════════════════════════════════════ SESSION FLOW ══════════════════════════════════ */
+function startSession(){
+  session=buildSession();
+  if(!session){alert('أكملت كل الأفعال! 🎉');return;}
+  if(!appState.inProgressSession)sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+  showScreen('session');
+  renderQuestion();
+}
+
+function finishSession(){
+  const vp=getVp(session.verb.it);
+  /* Lesson completion (only when finishing the learn flow, not a review-only session) */
+  if(!session.isReviewOnly&&vp.completedStages&&vp.completedStages.stage6&&!vp.completedLesson){
+    vp.completedLesson=true;
+    vp.lessonCompletedAt=Date.now();
+    vp.masteryLevel=0;       /* "رأيته" — lesson done but not yet reviewed */
+    vp.lastReview=Date.now();
+    vp.currentInterval=MASTERY_LEVELS[0].days;
+    vp.nextReview=Date.now()+MASTERY_LEVELS[0].days*86400000;
+    updateFamLevel(vp);
+  }
+  appState.inProgressSession=null;
+  saveState();
+
+  const total=sessionStats.correct+sessionStats.wrong;
+  const acc=total?Math.round(sessionStats.correct/total*100):100;
+
+  /* الفعل القادم */
+  const nextIdx=firstIncompleteIdx();
+  const nextIt=nextIdx<DAILY_ORDER.length?DAILY_ORDER[nextIdx]:'—';
+  const nextVerb=nextIdx<DAILY_ORDER.length?getVerb(nextIt):null;
+
+  /* بناء قائمة التحسن */
+  const famChanges=sessionStats.famChanges||{};
+  const improvedChips=Object.entries(famChanges).map(([it,ch])=>{
+    const delta=ch.afterLv-ch.beforeLv;
+    if(delta<=0)return'';
+    const vAfter=getVp(it);
+    return`<div class="improved-chip">${it} +${delta} مستوى → ${famLevelAr(vAfter.familiarityLevel)}</div>`;
+  }).filter(Boolean).join('');
+
+  /* موعد المراجعة */
+  const nextReviewDate=new Date(vp.nextReview).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+
+  $('screen-end').innerHTML=`
+    <div class="end-hero">
+      <div class="end-score">${acc}%</div>
+      <div class="end-label">دقة الجلسة</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="sv" style="color:var(--green)">${sessionStats.correct}</div><div class="sl">✓ صحيح</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--red)">${sessionStats.wrong}</div><div class="sl">✗ خطأ</div></div>
+    </div>
+
+    ${improvedChips?`
+    <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:4px">الأفعال التي تحسّنت:</p>
+    <div class="improved-list">${improvedChips}</div>`:''}
+
+    <div style="background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;">
+      <p class="end-detail">📅 مراجعة <b>${session.verb.it}</b> بعد: <b>${nextReviewDate}</b></p>
+      <p class="end-detail">💪 Familiarity الآن: <b>${vp.familiarity}%</b> (${famLevelAr(vp.familiarityLevel)})</p>
+      ${session.isReviewOnly?`<p class="end-detail">✅ جلسة مراجعة مكتملة</p>`:(nextVerb?`<p class="end-detail">🔜 الفعل القادم: <b>${nextIt}</b> — ${nextVerb.ar}</p>`:'<p class="end-detail">🏆 أكملت جميع الأفعال!</p>')}
+    </div>
+
+    <button class="start-btn" id="btn-end-home" style="margin-top:16px">🏠 الرئيسية</button>
+  `;
+
+  showScreen('end');
+  $('progress-bar').style.width='100%';
+  $('btn-end-home').onclick=()=>{showScreen('home');renderHome();};
+}
+
+/* ═══════════════════════════════════════ CURRICULUM SCREEN ══════════════════════════════ */
+function renderCurriculum(){
+  const si=firstIncompleteIdx();
+  const currentVerbIt=DAILY_ORDER[Math.min(si,DAILY_ORDER.length-1)];
+  const currentVp=getVp(currentVerbIt);
+
+  /* حالة الأزمنة للفعل الحالي */
+  const tenseStatus=[
+    {key:'pres',label:'المضارع',icon:'🟢',note:'مفتوح دايماً — أساس كل الأفعال'},
+    {key:'past',label:'الماضي (Passato Prossimo)',icon:canUsePastFut(currentVerbIt)?'🟢':'🔒',
+     note:canUsePastFut(currentVerbIt)?'مفتوح — تعلمته بعد إتقان المضارع':'يفتح بعد إتقان المضارع (مستوى Comfortable+)'},
+    {key:'fut',label:'المستقبل (Futuro Semplice)',icon:canUsePastFut(currentVerbIt)?'🟢':'🔒',
+     note:canUsePastFut(currentVerbIt)?'مفتوح':'يفتح مع الماضي'}
+  ];
+
+  /* خطوات تعلم الفعل */
+  const stages=[
+    {n:1,label:'المعنى',          desc:'MCQ ثم كتابة معنى الفعل — إيطالي↔عربي (2 MCQ + 2 كتابة + 2 كتابة)',items:6},
+    {n:2,label:'النمط',           desc:'اختار التصريف الصح مع كل ضمير من الستة مع جدول النهايات',items:6},
+    {n:3,label:'التصريف',         desc:'اكتب تصريف الفعل مع كل فاعل من الذاكرة — جولتان (6 فاعلين × 2)',items:12},
+    {n:4,label:'النسخ + جرامر',   desc:'شايف الجملة الإيطالية بمعنى كل كلمة + شرح قاعدة الجرامر — انسخها (جولتان بكلمات مختلفة)',items:12},
+    {n:5,label:'إيطالي → عربي',   desc:'شايف جملة إيطالية — اكتب معناها بالعربي (جولتان بكلمات مختلفة)',items:12},
+    {n:6,label:'عربي → إيطالي',   desc:'شايف جملة بالعربي — اكتبها بالإيطالي من الذاكرة (جولتان بكلمات مختلفة)',items:12}
+  ];
+
+  /* نظام المراجعة */
+  const masteryRows=MASTERY_LEVELS.map(lv=>`
+    <tr>
+      <td style="font-weight:700;color:var(--blue)" dir="ltr">${lv.name}</td>
+      <td>${lv.nameAr}</td>
+      <td dir="ltr">+${lv.days} ${lv.days===1?'يوم':'أيام'}</td>
+    </tr>`).join('');
+
+  /* الفعل الحالي — ما اتعلم وما لسه */
+  const currentDone=[];
+  const currentPending=[];
+  for(let s=1;s<=6;s++){
+    const key='stage'+s;
+    const stg=stages[s-1];
+    if(currentVp.completedStages[key]) currentDone.push(stg.label);
+    else currentPending.push(stg.label);
+  }
+  const stageItems={1:6,2:6,3:12,4:12,5:12,6:12};
+  const nextAction=currentPending.length>0
+    ?`المرحلة ${stages.find(s=>!currentVp.completedStages['stage'+s.n])?.n} — ${currentPending[0]} (${stageItems[stages.find(s=>!currentVp.completedStages['stage'+s.n])?.n]||6} سؤال)`
+    :'المراجعة الدورية حسب جدول Ebbinghaus';
+
+  $('screen-details').innerHTML=`
+    <div style="padding:14px">
+      <div class="home-top" style="margin-bottom:0">
+        <div class="app-title">المنهج والخطة</div>
+      </div>
+
+      <!-- الفعل الحالي -->
+      <div style="background:#e3f2fd;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:6px">📍 أنت الآن عند: <span dir="ltr">${currentVerbIt}</span></div>
+        <div style="font-size:12px;color:var(--muted)">الخطوة القادمة: <b style="color:var(--text)">${nextAction}</b></div>
+        ${currentDone.length>0?`<div style="font-size:11px;color:var(--green-dk);margin-top:4px">✓ تم: ${currentDone.join(' · ')}</div>`:''}
+      </div>
+
+      <!-- خطوات تعلم الفعل -->
+      <div style="background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px">🎯 خطوات تعلم كل فعل (${stages.reduce((a,s)=>a+s.items,0)} سؤال)</div>
+        ${stages.map(s=>`
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div style="background:var(--blue);color:#fff;font-size:11px;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;margin-top:1px">${s.n}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)">${s.label} <span style="color:var(--muted);font-weight:400;font-size:11px">(${s.items} أسئلة)</span></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:1px">${s.desc}</div>
+            </div>
+          </div>`).join('')}
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">بعد المرحلة 6 → الفعل يدخل نظام المراجعة الدورية</div>
+      </div>
+
+      <!-- الأزمنة -->
+      <div style="background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px">⏱ الأزمنة — حالة الفعل الحالي</div>
+        ${tenseStatus.map(t=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:16px">${t.icon}</span>
+            <div>
+              <div style="font-size:13px;font-weight:700">${t.label}</div>
+              <div style="font-size:11px;color:var(--muted)">${t.note}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <!-- نظام المراجعة -->
+      <div style="background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px">🔄 نظام المراجعة (Ebbinghaus)</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">كل مراجعة صح → المستوى يتقدم والانتظار يزيد. غلط → المستوى ينزل خطوة.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;direction:rtl;text-align:center">
+          <thead><tr style="background:var(--text);color:#fff"><th style="padding:5px">Level</th><th>المستوى</th><th>الانتظار</th></tr></thead>
+          <tbody>${masteryRows}</tbody>
+        </table>
+        <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">المراجعة = 6 أسئلة متنوعة (fill_blank / ar_to_it / it_to_ar / conj_drill) بكلمات مخصصة لكل فعل</div>
+      </div>
+
+      <!-- نظام الكلمات المخصصة -->
+      <div style="background:#f3e5f5;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:800;color:#7b1fa2;margin-bottom:8px">🔗 الربط السياقي المخصص (Contextual Mapping)</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">كل فعل عنده 8 كلمات/عبارات مخصصة تجيله دايماً — الجمل منطقية 100% ومش عشوائية.</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.8">
+          مثال — فعل <b dir="ltr">giocare</b>:<br>
+          <span dir="ltr" style="color:#7b1fa2;font-weight:700">Io gioco a calcio</span> ← كرة القدم<br>
+          <span dir="ltr" style="color:#7b1fa2;font-weight:700">Tu giochi con gli amici</span> ← مع الأصدقاء<br>
+          <span dir="ltr" style="color:#7b1fa2;font-weight:700">Loro giocano in palestra</span> ← في الجيم
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">في Stage 4 يظهر شرح قاعدة الجرامر للكلمات اللي فيها قاعدة (أدوات، حروف جر، جمع...)</div>
+      </div>
+
+      <!-- ترتيب الأفعال -->
+      <div style="background:#f8f9fa;border-radius:14px;padding:12px 14px;margin:10px 0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px">📋 ترتيب الأفعال (${DAILY_ORDER.length} فعل)</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">منتظمة (-are/-ere/-ire) أولاً، ثم شبه منتظمة، ثم شاذة حسب الشيوع</div>
+        <!-- Legend -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;font-size:10px">
+          <span style="background:#4caf50;color:#fff;padding:2px 8px;border-radius:8px">✓ مكتمل</span>
+          <span style="background:var(--blue);color:#fff;padding:2px 8px;border-radius:8px">◉ الحالي</span>
+          <span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:8px">⚠ شاذ</span>
+          <span style="background:#9c27b0;color:#fff;padding:2px 8px;border-radius:8px">~ شبه منتظم</span>
+          <span style="background:#90a4ae;color:#fff;padding:2px 8px;border-radius:8px">○ لم يبدأ</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;direction:ltr">
+          ${DAILY_ORDER.map((it,i)=>{
+            const vp2=getVp(it);
+            const done2=vp2.completedStages.stage6;
+            const isCur=(i===si);
+            const verb2=getVerb(it);
+            const isIrreg=IRREGULAR_ALL.has(it);
+            const isSemi=SEMI_REGULAR.includes(it);
+            const bg=done2?'#4caf50':isCur?'var(--blue)':isIrreg?'#ff9800':isSemi?'#9c27b0':'#90a4ae';
+            const endType=it.endsWith('are')?'-are':it.endsWith('ere')?'-ere':it.endsWith('ire')?'-ire':'';
+            return`<span title="${verb2?verb2.ar:it} ${endType}" style="background:${bg};color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;cursor:default">${i+1}.${it}</span>`;
+          }).join('')}
+        </div>
+        <!-- إحصائية سريعة -->
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
+          <span>✓ مكتمل: <b style="color:var(--green-dk)">${DAILY_ORDER.filter(v=>getVp(v).completedStages.stage6).length}</b></span>
+          <span>⚠ شاذة: <b style="color:#ff9800">${DAILY_ORDER.filter(v=>IRREGULAR_ALL.has(v)).length}</b></span>
+          <span>~ شبه منتظمة: <b style="color:#9c27b0">${DAILY_ORDER.filter(v=>SEMI_REGULAR.includes(v)).length}</b></span>
+          <span>○ منتظمة: <b>${DAILY_ORDER.filter(v=>!IRREGULAR_ALL.has(v)&&!SEMI_REGULAR.includes(v)).length}</b></span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════ INIT ══════════════════════════════════════════ */
+function init(){
+  loadState();
+  $('btn-home').onclick=()=>{
+    if(session&&!session.isReviewOnly){
+      if(confirm('الخروج من الجلسة؟')){saveState();session=null;showScreen('home');renderHome();}
+    }else{
+      saveState();session=null;showScreen('home');renderHome();
+    }
+  };
+  $('btn-tts').onclick=()=>{
+    appState.settings.tts=!appState.settings.tts;
+    saveState();
+    $('btn-tts').style.opacity=appState.settings.tts?'1':'.4';
+  };
+  $('main-btn').onclick=handleMainAction;
+  $('btn-tts').style.opacity=appState.settings.tts?'1':'.4';
+  $('footer').style.display='none';
+  renderHome();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
