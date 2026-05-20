@@ -41,7 +41,7 @@ const BOOK_TIME_WORDS = [
 */
 const SEMI_REGULAR=['mangiare','giocare','comunicare','navigare','bloggare','studiare'];
 
-const IRREGULAR_ALL=new Set(['andare','fare','venire','dire','vedere','prendere','leggere','bere','scrivere','uscire','aprire','chiudere','rimanere','vivere','stare','morire','scendere','crescere','succedere','volere','potere','dovere','sapere','salire','capire','preferire']);
+const IRREGULAR_ALL=new Set(['andare','fare','venire','dire','vedere','prendere','leggere','bere','scrivere','uscire','aprire','chiudere','rimanere','vivere','stare','morire','scendere','crescere','volere','potere','dovere','sapere','salire','capire','preferire']);
 
 /* تصريف المضارع للأفعال الشاذة — [io,tu,lui/lei,noi,voi,loro] */
 const IRREGULAR_PRESENT={
@@ -221,7 +221,7 @@ const DAILY_ORDER=[
   /* شاذة في الحاضر أو الماضي */
   'salire',  /* شاذ في الحاضر: io salgo وليس salisco */
   'vedere','prendere','leggere','scrivere','vivere','aprire','chiudere','scendere',
-  'crescere','succedere','fare','andare','venire','stare','dire','uscire','bere',
+  'crescere','fare','andare','venire','stare','dire','uscire','bere',
   'rimanere','morire','volere','potere','dovere','sapere'
 ];
 
@@ -266,7 +266,6 @@ const VERB_COMPLEMENTS = {
   'morire':    [{s:'di fame.',as:'من الجوع'},{s:'di freddo.',as:'من البرد'},{s:'di paura.',as:'من الخوف'},{s:'vecchio.',as:'عجوزاً'},{s:'di caldo.',as:'من الحر'},{s:'di noia.',as:'من الملل'},{s:'di stanchezza.',as:'من التعب'},{s:'presto.',as:'مبكراً'}],
   'scendere':  [{s:'le scale.',as:'الدرج'},{s:'dal treno.',as:'من القطار'},{s:"dall'autobus.",as:'من الأتوبيس'},{s:'in fretta.',as:'بسرعة'},{s:'dalla macchina.',as:'من السيارة'},{s:'presto.',as:'مبكراً'},{s:'piano.',as:'بهدوء'},{s:'subito.',as:'فوراً'}],
   'crescere':  [{s:'in fretta.',as:'بسرعة'},{s:'a Roma.',as:'في روما'},{s:'con la famiglia.',as:'مع العائلة'},{s:'bene.',as:'جيداً'},{s:'insieme.',as:'معاً'},{s:'in campagna.',as:'في الريف'},{s:'vicino al mare.',as:'قرب البحر'},{s:'lentamente.',as:'ببطء'}],
-  'succedere': [{s:'spesso.',as:'كثيراً'},{s:'a volte.',as:'أحياناً'},{s:'sempre.',as:'دائماً'},{s:'di mattina.',as:'صباحاً'},{s:'raramente.',as:'نادراً'},{s:'in fretta.',as:'بسرعة'},{s:'a tutti.',as:'للجميع'},{s:'in classe.',as:'في الفصل'}],
   'fare':      [{s:'la spesa.',as:'التسوق'},{s:'colazione.',as:'الإفطار'},{s:'sport.',as:'رياضة'},{s:'i compiti.',as:'الواجبات'},{s:'una passeggiata.',as:'نزهة'},{s:'presto.',as:'مبكراً'},{s:'tutto.',as:'كل شيء'},{s:'bene.',as:'جيداً'}],
   'andare':    [{s:'al parco.',as:'إلى الحديقة'},{s:'a scuola.',as:'إلى المدرسة'},{s:'in palestra.',as:'إلى الجيم'},{s:'al lavoro.',as:'إلى العمل'},{s:'a casa.',as:'إلى المنزل'},{s:'al mercato.',as:'إلى السوق'},{s:'in bicicletta.',as:'بالدراجة'},{s:'con la famiglia.',as:'مع العائلة'}],
   'venire':    [{s:'con noi.',as:'معنا'},{s:'a casa.',as:'إلى المنزل'},{s:'presto.',as:'مبكراً'},{s:'in classe.',as:'إلى الفصل'},{s:'con il fratello.',as:'مع الأخ'},{s:'a piedi.',as:'سيراً على الأقدام'},{s:'spesso.',as:'كثيراً'},{s:'domani.',as:'غداً'}],
@@ -400,11 +399,11 @@ const data={
       {it:'morire',   ar:'يموت',      arPast:'مات',  arPastRoot:'مت',  arPres:['أموت','تموت','يموت/تموت','نموت','تموتون','يموتون'],     s:'vecchio.',       as:'عجوزاً',       aux:'essere', pastPart:'morto'},
       {it:'scendere', ar:'ينزل',      arPast:'نزل',  arPres:['أنزل','تنزل','ينزل/تنزل','ننزل','تنزلون','ينزلون'],                     s:'le scale.',      as:'السلالم',      aux:'essere', pastPart:'sceso'},
       {it:'crescere', ar:'يكبر',      arPast:'كبر',  arPres:['أكبر','تكبر','يكبر/تكبر','نكبر','تكبرون','يكبرون'],                     s:'in fretta.',     as:'بسرعة',        aux:'essere', pastPart:'cresciuto'},
-      {it:'succedere',ar:'يحدث',      arPast:'حدث',  arPres:['أحدث','تحدث','يحدث/تحدث','نحدث','تحدثون','يحدثون'],                     s:'spesso.',        as:'كثيراً',       aux:'essere', pastPart:'successo'},
+      /* succedere محذوف — impersonal verb لا يُصرَّف مع كل الضمائر */
       /* ── أفعال شاذة جديدة (modals) ── */
       {it:'volere',   ar:'يريد',      arPast:'أراد', arPastRoot:'أرد', arPres:['أريد','تريد','يريد/تريد','نريد','تريدون','يريدون'],                    s:'studiare.',      as:'أن يدرس',      aux:'avere', pastPart:'voluto'},
       {it:'potere',   ar:'يستطيع',    arPast:'استطاع',arPres:['أستطيع','تستطيع','يستطيع/تستطيع','نستطيع','تستطيعون','يستطيعون'],                      s:'venire.',        as:'أن يأتي',      aux:'avere', pastPart:'potuto'},
-      {it:'dovere',   ar:'يجب',       arPast:'وجب',  arPres:['يلزمني','يلزمك','يلزمه/يلزمها','يلزمنا','يلزمكم','يلزمهم'],                              s:'lavorare.',      as:'أن يعمل',      aux:'avere', pastPart:'dovuto'},
+      {it:'dovere',   ar:'يجب',       arPast:'وجب',  arPres:['يجب أن أ','يجب أن ت','يجب أن ي/ت','يجب أن ن','يجب أن ت','يجب أن ي'],                         s:'lavorare.',      as:'أن يعمل',      aux:'avere', pastPart:'dovuto'},
       {it:'sapere',   ar:'يعرف',      arPast:'عرف',  arPres:['أعرف','تعرف','يعرف/تعرف','نعرف','تعرفون','يعرفون'],                                     s:'la verità.',     as:'الحقيقة',      aux:'avere', pastPart:'saputo'}
     ]
   }
