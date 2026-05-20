@@ -259,7 +259,19 @@ function getConjugation(verb,pIdx,tense){
 function seededRandom(seed){const x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-function pickModifier(seed){return seededRandom(seed)<0.35?MODIFIERS[Math.floor(seededRandom(seed+1)*MODIFIERS.length)]:''; }
+function pickModifier(seed){
+  /* BOOK_TIME_WORDS كاملاً مستثنى prima/dopo (يحتاجان سياق) */
+  const EXCL=new Set(['prima','dopo']);
+  if(seededRandom(seed)<0.35){
+    const pool=BOOK_TIME_WORDS.filter(t=>!EXCL.has(t.it));
+    return pool[Math.floor(seededRandom(seed+1)*pool.length)].it;
+  }
+  return '';
+}
+function modifierAr(modIt){
+  const tw=BOOK_TIME_WORDS.find(t=>t.it===modIt);
+  return tw?tw.ar:(MOD_AR[modIt]||modIt);
+}
 function buildSentence(verb,pIdx,tense,modSeed,compIdx){
   const pr=data.pronouns[pIdx];
   const conj=getConjugation(verb,pIdx,tense);
@@ -293,7 +305,7 @@ function buildSentence(verb,pIdx,tense,modSeed,compIdx){
   }
   let ar=getArPres(verb,pIdx)+' '+arCompAs;
   if(tense==='past')ar=genArPastConj(verb,pIdx)+' '+arCompAs;
-  if(mod)ar+=' '+(MOD_AR[mod]||mod);
+  if(mod)ar+=' '+modifierAr(mod);
   return{it,ar,pronounIdx:pIdx,tense,compS,compAs};
 }
 
@@ -361,7 +373,7 @@ function getVp(it){if(!appState.verbProgress[it])appState.verbProgress[it]=defau
 
 /* معدل النسيان يتباطأ كلما زادت قوة الذاكرة */
 const DECAY_BY_LEVEL={
-  'Seen':10,'Familiar':7,'Comfortable':4,'Strong':2,'Automatic':1
+  'Seen':10,'Familiar':7,'Comfortable':4,'Strong':2,'Sealed':1
 };
 
 function applyDecay(){
@@ -438,6 +450,7 @@ function countDueReviews(){
 function buildLearnQueue(verb){
   const q=[];
   const ALL_P=[0,1,2,3,4,5];
+  const seed=verb.it.length;
 
   /* Stage 1 — 6 interactions: Semantic Anchor */
   q.push({type:'mcq_ar',  stage:1,verb});
@@ -453,7 +466,7 @@ function buildLearnQueue(verb){
   /* Stage 3 — 12 interactions: conj_drill × 6 ثم fill_blank × 6 (نفس الضمائر، شكل مختلف) */
   ALL_P.forEach(pi=>q.push({type:'conj_drill',stage:3,verb,pronounIdx:pi,tense:'pres'}));
   ALL_P.forEach(pi=>{
-    const sent=buildSentence(verb,pi,'pres',seed+30+pi);
+    const sent=buildSentence(verb,pi,'pres',seed+30+pi,pi+20); /* compIdx مختلف عن Stage 4/5/6 */
     q.push({type:'fill_blank',stage:3,verb,pronounIdx:pi,tense:'pres',sentence:sent,_expected:getConjugation(verb,pi,'pres')});
   });
 
@@ -605,6 +618,12 @@ function checkArabicAnswer(input,verb,pIdx,tense){
     });
     expandArVariants(verb.ar).forEach(v=>variants.add(v));
     expandArVariants(getArPres(verb,pi)).forEach(v=>variants.add(v));
+    /* للأفعال الناقصة: قبول "يجب أن + جذر أي فعل" أو "يجب + complement" */
+    if(new Set(['dovere','volere','potere']).has(verb.it)){
+      expandArVariants('يجب أن').forEach(v=>variants.add(v)); /* partial accept */
+      /* قبول verb.ar وحده كبادئة */
+      expandArVariants(verb.ar+' أن').forEach(v=>variants.add(v));
+    }
   }
   const ans=normalizeAr(input);
   for(const v of variants){
@@ -880,7 +899,7 @@ function renderQuestion(){
     const conjForm=getConjugation(item.verb,item.pronounIdx,tense);
     html+=`<h2 class="q-title">صرّف الفعل — ${tenseLabel}</h2>`;
     const prSpoken=pr.it==='Lui/Lei'?'Lui':pr.it;
-    html+=`<div class="word-card" onclick="speak('${prSpoken} ${conjForm}')">${item.verb.it}</div>`;
+    html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
     if(isIrreg)html+=`<div class="irreg-note">⚠️ فعل شاذ</div>`;
     html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${pr.it}</span></div>`;
     html+=`<input id="write-input" placeholder="${pr.it} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
@@ -896,9 +915,10 @@ function renderQuestion(){
     const sentClean=item.sentence.it.replace(/\.$/,'');
     /* نأخذ بقية الجملة بعد الفعل المصرف */
     const afterVerb=sentClean.replace(pr.it+' '+conj+' ','').trim();
-    /* فصل الـ modifier عن الكائن */
+    /* فصل الـ modifier عن الكائن — يبحث في كل BOOK_TIME_WORDS */
     let objectPart=afterVerb,modifierPart='';
-    for(const m of MODIFIERS){
+    const allTimeWords=[...BOOK_TIME_WORDS.map(t=>t.it),...MODIFIERS];
+    for(const m of allTimeWords){
       if(afterVerb.endsWith(' '+m)){
         modifierPart=m;
         objectPart=afterVerb.slice(0,-m.length-1).trim();
@@ -912,7 +932,7 @@ function renderQuestion(){
     ];
     const compAs = item.sentence.compAs || item.verb.as;
     if(objectPart)wordPairs.push({it:objectPart,ar:compAs});
-    if(modifierPart)wordPairs.push({it:modifierPart,ar:MOD_AR[modifierPart]||modifierPart});
+    if(modifierPart)wordPairs.push({it:modifierPart,ar:modifierAr(modifierPart)});
 
     const wordsHtml=wordPairs.map(w=>`
       <div style="display:flex;flex-direction:column;align-items:center;padding:6px 10px;background:#fff;border-radius:10px;border:1px solid var(--border);min-width:60px">
