@@ -534,9 +534,13 @@ function buildSession(){
   if(appState.inProgressSession&&appState.inProgressSession.queue){
     const s=appState.inProgressSession;
     const VALID_TYPES=new Set(['mcq_ar','write_ar','write_it','mcq_conj','conj_drill','copy_it','it_to_ar','ar_to_it','fill_blank']);
-    /* Validate queue: كل item لازم يكون type صح وverb.it معروف */
+    /* Validate queue: كل item لازم يكون type صح وverb.it معروف + pronounIdx موجود للأنواع اللي تحتاجه */
+    const PRONOUN_TYPES=new Set(['mcq_conj','conj_drill','copy_it','it_to_ar','ar_to_it','fill_blank']);
     const isValidQueue=Array.isArray(s.queue)&&s.queue.length>0&&
-      s.queue.every(item=>VALID_TYPES.has(item.type)&&item.verb&&typeof item.verb.it==='string'&&!!getVerb(item.verb.it));
+      s.queue.every(item=>
+        VALID_TYPES.has(item.type)&&item.verb&&typeof item.verb.it==='string'&&!!getVerb(item.verb.it)&&
+        (!PRONOUN_TYPES.has(item.type)||item.pronounIdx!=null)
+      );
     if(isValidQueue){
       /* Rehydrate verb references من live data لتجنب stale plain-object issues */
       s.queue=s.queue.map(item=>{
