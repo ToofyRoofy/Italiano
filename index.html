@@ -485,15 +485,15 @@ function buildLearnQueue(verb){
     sentence:buildSentence(verb,pi,'pres',null,pi+6)}));
 
   /* Stage 5 — 12 interactions: IT → AR */
-  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,
+  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,pronounIdx:pi,
     sentence:buildSentence(verb,pi,'pres',null,pi+2)}));
-  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,
+  ALL_P.forEach(pi=>q.push({type:'it_to_ar',stage:5,verb,pronounIdx:pi,
     sentence:buildSentence(verb,pi,'pres',null,pi+5)}));
 
   /* Stage 6 — 12 interactions: AR → IT */
-  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,
+  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,pronounIdx:pi,
     sentence:buildSentence(verb,pi,'pres',null,pi+1)}));
-  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,
+  ALL_P.forEach(pi=>q.push({type:'ar_to_it',stage:6,verb,pronounIdx:pi,
     sentence:buildSentence(verb,pi,'pres',null,pi+4)}));
 
   return q;
@@ -991,8 +991,9 @@ function renderQuestion(){
 
   /* ── IT_TO_AR (Stage 5) ── */
   else if(item.type==='it_to_ar'){
+    const speakSentIt=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
     html+=`<h2 class="q-title">ترجم إلى العربية</h2>`;
-    html+=`<div class="word-card" onclick="speak('${item.sentence.it}')">${item.sentence.it}</div>`;
+    html+=`<div class="word-card" onclick="speak('${speakSentIt}')">${item.sentence.it}</div>`;
     html+=`<input id="write-input" placeholder="المعنى بالعربي" autocomplete="off" autocorrect="off" spellcheck="false">`;
   }
 
