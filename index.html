@@ -281,6 +281,18 @@ function modifierAr(modIt){
 }
 function buildSentence(verb,pIdx,tense,modSeed,compIdx){
   const pr=data.pronouns[pIdx];
+
+  /* لـ pIdx=2 (Lui/Lei): اختر عشوائياً بناءً على compIdx أو modSeed */
+  let resolvedPronoun=pr.it;
+  let resolvedPronounAr=pr.ar;
+  let isFeminine=false;
+  if(pIdx===2){
+    const seed2=(compIdx!=null?compIdx:0)+(modSeed!=null?modSeed:verb.it.charCodeAt(0));
+    isFeminine=(seed2%2===1);
+    resolvedPronoun=isFeminine?'Lei':'Lui';
+    resolvedPronounAr=isFeminine?'هي':'هو';
+  }
+
   const conj=getConjugation(verb,pIdx,tense);
   const mod=pickModifier(modSeed!=null?modSeed:verb.it.charCodeAt(0)+pIdx);
 
@@ -295,26 +307,36 @@ function buildSentence(verb,pIdx,tense,modSeed,compIdx){
     compAs = verb.as;
   }
 
-  let it=pr.it+' '+conj+' '+compS.trim();
+  let it=resolvedPronoun+' '+conj+' '+compS.trim();
   if(mod)it=it.replace(/\.\s*$/,'')+' '+mod+'.';
   /* للأفعال الناقصة (modal): تصريف المتمم العربي حسب الضمير */
   const modalSet=new Set(['volere','potere','dovere','sapere']);
   let arCompAs=compAs;
   if(modalSet.has(verb.it)&&compAs.startsWith('أن ')){
-    /* arPres[pIdx] يحتوي فعل المتمم بصيغة هو — نحوله للضمير الصح */
-    /* arModalForms: حرف المضارعة لكل ضمير فقط (بدون أن) */
     const arMudPrefix=['أ','ت','ي','ن','ت','ي'];
     const arMudSuffix=['','','','','وا','وا'];
-    /* compAs مثلاً "أن يذهب إلى المنزل" — نستبدل حرف المضارعة (بعد "أن ") */
-    /* compAs.slice(3) = "يذهب إلى المنزل" → [0] = حرف المضارعة الأصلي */
-    const verbPart=compAs.slice(3); /* "يذهب إلى المنزل" */
-    const verbRoot=verbPart.slice(1); /* "ذهب إلى المنزل" — بعد حرف المضارعة */
+    const verbPart=compAs.slice(3);
+    const verbRoot=verbPart.slice(1);
     arCompAs='أن '+arMudPrefix[pIdx]+verbRoot+arMudSuffix[pIdx];
   }
-  let ar=getArPres(verb,pIdx)+' '+arCompAs;
-  if(tense==='past')ar=genArPastConj(verb,pIdx)+' '+arCompAs;
+  /* للـ essere verbs في الماضي: تطبيق agreement (partito/partita) حسب الجنس المختار */
+  let arVerb=getArPres(verb,pIdx);
+  if(tense==='past'){
+    if(pIdx===2){
+      const conjForms=genArPastConj(verb,pIdx).split('/');
+      arVerb=isFeminine?(conjForms[1]||conjForms[0]):conjForms[0];
+    }else{
+      arVerb=genArPastConj(verb,pIdx);
+    }
+  }else if(pIdx===2){
+    /* مضارع هو/هي — خذ الصيغة المناسبة */
+    const presForms=getArPres(verb,pIdx).split('/');
+    arVerb=isFeminine?(presForms[1]||presForms[0]):presForms[0];
+  }
+  let ar=arVerb+' '+arCompAs;
   if(mod)ar+=' '+modifierAr(mod);
-  return{it,ar,pronounIdx:pIdx,tense,compS,compAs};
+  /* حفظ الضمير المحلول للاستخدام في التحقق */
+  return{it,ar,pronounIdx:pIdx,tense,compS,compAs,resolvedPronoun,isFeminine};
 }
 
 /* ═══════════════════════════════════════ STATE ═════════════════════════════════════════ */
@@ -581,7 +603,13 @@ function buildSession(){
 /* ═══════════════════════════════════════ ANSWER LOGIC ══════════════════════════════════ */
 function normalizeAr(s){
   if(!s)return'';
-  return s.trim().replace(/[\u064B-\u065F\u0670]/g,'').replace(/^(ال)/,'').replace(/\s+/g,' ').toLowerCase();
+  return s.trim()
+    .replace(/[\u064B-\u065F\u0670]/g,'')
+    .replace(/[أإآ]/g,'ا')
+    .replace(/ة/g,'ه')
+    .replace(/^ال/,'')
+    .replace(/\s+/g,' ')
+    .toLowerCase();
 }
 function normalizeIt(s){
   if(!s)return'';
@@ -596,9 +624,15 @@ function checkItalianAnswer(input,expectedFull,pronounIt){
   const a=normalizeIt(input),e=normalizeIt(expectedFull);
   if(a===e)return true;
   if(stripPronounIt(a,pronounIt)===stripPronounIt(e,pronounIt))return true;
-  /* قبول Lui أو Lei بدلاً من "Lui/Lei" + قبول partito أو partita (essere verbs) */
-  if(pronounIt.toLowerCase()==='lui/lei'){
-    const base=[e,e.replace('lui/lei','lui'),e.replace('lui/lei','lei')];
+  /* قبول Lui أو Lei إذا كان الضمير محدد (من resolvedPronoun) أو Lui/Lei */
+  const pronounLower=pronounIt.toLowerCase();
+  if(pronounLower==='lui'||pronounLower==='lei'||pronounLower==='lui/lei'){
+    const base=[e,
+      e.replace(/^lui\/lei\s*/,'lui ').trimEnd(),
+      e.replace(/^lui\/lei\s*/,'lei ').trimEnd(),
+      e.replace(/^lui\s*/,'').trimEnd(),
+      e.replace(/^lei\s*/,'').trimEnd()
+    ];
     const expanded=[];
     base.forEach(v=>{
       expanded.push(v);
@@ -606,7 +640,7 @@ function checkItalianAnswer(input,expectedFull,pronounIt){
     });
     for(const ev of expanded){
       if(a===ev)return true;
-      const pr2=ev.startsWith('lui')?'lui':ev.startsWith('lei')?'lei':pronounIt.toLowerCase();
+      const pr2=ev.startsWith('lui')?'lui':ev.startsWith('lei')?'lei':pronounLower;
       if(stripPronounIt(a,pr2)===stripPronounIt(ev,pr2))return true;
     }
   }
@@ -760,9 +794,7 @@ function markStageProgress(item){
 function speak(text){
   if(!appState.settings.tts||!window.speechSynthesis)return;
   window.speechSynthesis.cancel();
-  /* Lui/Lei لا تُنطق بشكل صحيح — استبدلها بـ Lui */
-  const cleanText=String(text).replace(/Lui\/Lei/g,'Lui');
-  const u=new SpeechSynthesisUtterance(cleanText);u.lang='it-IT';u.rate=0.9;
+  const u=new SpeechSynthesisUtterance(String(text));u.lang='it-IT';u.rate=0.9;
   window.speechSynthesis.speak(u);
 }
 
@@ -933,24 +965,29 @@ function renderQuestion(){
     const tense=item.tense||'pres';
     const tenseLabel=tense==='pres'?'المضارع':tense==='past'?'الماضي':'المستقبل';
     const conjForm=getConjugation(item.verb,item.pronounIdx,tense);
+    /* للـ pIdx=2: اختر Lui أو Lei عشوائياً ثابتاً لهذا السؤال */
+    let displayPronoun=pr.it;
+    if(item.pronounIdx===2){
+      const seed3=(item.stage||0)+(session?session.idx:0);
+      displayPronoun=(seed3%2===1)?'Lei':'Lui';
+    }
     html+=`<h2 class="q-title">صرّف الفعل — ${tenseLabel}</h2>`;
-    const prSpoken=pr.it==='Lui/Lei'?'Lui':pr.it;
     html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
     if(isIrreg)html+=`<div class="irreg-note">⚠️ فعل شاذ</div>`;
-    html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${pr.it}</span></div>`;
-    html+=`<input id="write-input" placeholder="${pr.it} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
-    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
-    item._expected=pr.it+' '+conjForm;
+    html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${displayPronoun}</span></div>`;
+    html+=`<input id="write-input" placeholder="${displayPronoun} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
+    if(item.pronounIdx===2)html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
+    item._expected=displayPronoun+' '+conjForm;
   }
 
   /* ── COPY_IT (Stage 4) — يرى الجملة الإيطالية + معنى كل كلمة بالعربي، وينسخها بالإيطالي ── */
   else if(item.type==='copy_it'){
     const pr=data.pronouns[item.pronounIdx];
     const conj=getConjugation(item.verb,item.pronounIdx,'pres');
-    /* استخراج الـ modifier إن وجد + الكائن */
+    const resolvedPr=item.sentence.resolvedPronoun||pr.it;
     const sentClean=item.sentence.it.replace(/\.$/,'');
-    /* نأخذ بقية الجملة بعد الفعل المصرف */
-    const afterVerb=sentClean.replace(pr.it+' '+conj+' ','').trim();
+    /* نأخذ بقية الجملة بعد الفعل المصرف — نستخدم الضمير المحلول */
+    const afterVerb=sentClean.replace(resolvedPr+' '+conj+' ','').trim();
     /* فصل الـ modifier عن الكائن — يبحث في كل BOOK_TIME_WORDS */
     let objectPart=afterVerb,modifierPart='';
     const allTimeWords=[...BOOK_TIME_WORDS.map(t=>t.it),...MODIFIERS];
@@ -962,9 +999,13 @@ function renderQuestion(){
       }
     }
     /* بناء جدول كلمة-بكلمة */
+    const pronounArResolved=item.sentence.isFeminine?'هي':(item.pronounIdx===2?'هو':pr.ar);
+    const conjArResolved=item.sentence.isFeminine!=null&&item.pronounIdx===2
+      ? getArPres(item.verb,item.pronounIdx).split('/')[item.sentence.isFeminine?1:0]||getArPres(item.verb,item.pronounIdx).split('/')[0]
+      : getArPres(item.verb,item.pronounIdx);
     const wordPairs=[
-      {it:pr.it,ar:pr.ar},
-      {it:conj,ar:getArPres(item.verb,item.pronounIdx)}
+      {it:resolvedPr,ar:pronounArResolved},
+      {it:conj,ar:conjArResolved}
     ];
     const compAs = item.sentence.compAs || item.verb.as;
     if(objectPart)wordPairs.push({it:objectPart,ar:compAs});
@@ -982,20 +1023,19 @@ function renderQuestion(){
       ? `<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;line-height:1.7;direction:rtl;text-align:right">${grammarNote}<\/div>`
       : '';
 
-    const speakSent=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
+    const speakSent=item.sentence.it.replace(/'/g,"\\'");
     html+=`<h2 class="q-title">انسخ الجملة بالإيطالي</h2>`;
     html+=`<p style="text-align:center;font-size:12px;color:var(--muted);margin:0 0 8px">معنى كل كلمة موضح أسفلها — اكتب الجملة كاملة بالإيطالي</p>`;
     html+=`<div class="word-card" onclick="speak('${speakSent}')" style="font-size:18px;padding:14px">🔊 ${item.sentence.it}</div>`;
     html+=`<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#f8f9fa;padding:10px;border-radius:12px;margin-bottom:10px;direction:ltr">${wordsHtml}</div>`;
     html+=grammarHtml;
-    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin:0 0 6px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
     html+=`<input id="write-input" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="اكتب الجملة الإيطالية...">`;
     item._expected=item.sentence.it;
   }
 
   /* ── IT_TO_AR (Stage 5) ── */
   else if(item.type==='it_to_ar'){
-    const speakSentIt=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
+    const speakSentIt=item.sentence.it.replace(/'/g,"\\'");
     html+=`<h2 class="q-title">ترجم إلى العربية</h2>`;
     html+=`<div class="word-card" onclick="speak('${speakSentIt}')">${item.sentence.it}</div>`;
     html+=`<input id="write-input" placeholder="المعنى بالعربي" autocomplete="off" autocorrect="off" spellcheck="false">`;
