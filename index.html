@@ -281,18 +281,6 @@ function modifierAr(modIt){
 }
 function buildSentence(verb,pIdx,tense,modSeed,compIdx){
   const pr=data.pronouns[pIdx];
-
-  /* لـ pIdx=2 (Lui/Lei): اختر عشوائياً بناءً على compIdx أو modSeed */
-  let resolvedPronoun=pr.it;
-  let resolvedPronounAr=pr.ar;
-  let isFeminine=false;
-  if(pIdx===2){
-    const seed2=(compIdx!=null?compIdx:0)+(modSeed!=null?modSeed:verb.it.charCodeAt(0));
-    isFeminine=(seed2%2===1);
-    resolvedPronoun=isFeminine?'Lei':'Lui';
-    resolvedPronounAr=isFeminine?'هي':'هو';
-  }
-
   const conj=getConjugation(verb,pIdx,tense);
   const mod=pickModifier(modSeed!=null?modSeed:verb.it.charCodeAt(0)+pIdx);
 
@@ -307,41 +295,31 @@ function buildSentence(verb,pIdx,tense,modSeed,compIdx){
     compAs = verb.as;
   }
 
-  let it=resolvedPronoun+' '+conj+' '+compS.trim();
+  let it=pr.it+' '+conj+' '+compS.trim();
   if(mod)it=it.replace(/\.\s*$/,'')+' '+mod+'.';
   /* للأفعال الناقصة (modal): تصريف المتمم العربي حسب الضمير */
   const modalSet=new Set(['volere','potere','dovere','sapere']);
   let arCompAs=compAs;
   if(modalSet.has(verb.it)&&compAs.startsWith('أن ')){
+    /* arPres[pIdx] يحتوي فعل المتمم بصيغة هو — نحوله للضمير الصح */
+    /* arModalForms: حرف المضارعة لكل ضمير فقط (بدون أن) */
     const arMudPrefix=['أ','ت','ي','ن','ت','ي'];
     const arMudSuffix=['','','','','وا','وا'];
-    const verbPart=compAs.slice(3);
-    const verbRoot=verbPart.slice(1);
+    /* compAs مثلاً "أن يذهب إلى المنزل" — نستبدل حرف المضارعة (بعد "أن ") */
+    /* compAs.slice(3) = "يذهب إلى المنزل" → [0] = حرف المضارعة الأصلي */
+    const verbPart=compAs.slice(3); /* "يذهب إلى المنزل" */
+    const verbRoot=verbPart.slice(1); /* "ذهب إلى المنزل" — بعد حرف المضارعة */
     arCompAs='أن '+arMudPrefix[pIdx]+verbRoot+arMudSuffix[pIdx];
   }
-  /* للـ essere verbs في الماضي: تطبيق agreement (partito/partita) حسب الجنس المختار */
-  let arVerb=getArPres(verb,pIdx);
-  if(tense==='past'){
-    if(pIdx===2){
-      const conjForms=genArPastConj(verb,pIdx).split('/');
-      arVerb=isFeminine?(conjForms[1]||conjForms[0]):conjForms[0];
-    }else{
-      arVerb=genArPastConj(verb,pIdx);
-    }
-  }else if(pIdx===2){
-    /* مضارع هو/هي — خذ الصيغة المناسبة */
-    const presForms=getArPres(verb,pIdx).split('/');
-    arVerb=isFeminine?(presForms[1]||presForms[0]):presForms[0];
-  }
-  let ar=arVerb+' '+arCompAs;
+  let ar=getArPres(verb,pIdx)+' '+arCompAs;
+  if(tense==='past')ar=genArPastConj(verb,pIdx)+' '+arCompAs;
   if(mod)ar+=' '+modifierAr(mod);
-  /* حفظ الضمير المحلول للاستخدام في التحقق */
-  return{it,ar,pronounIdx:pIdx,tense,compS,compAs,resolvedPronoun,isFeminine};
+  return{it,ar,pronounIdx:pIdx,tense,compS,compAs};
 }
 
 /* ═══════════════════════════════════════ STATE ═════════════════════════════════════════ */
 let appState=null,session=null,currentItem=null,pickedMcq=null,waitingContinue=false,retryMode=false;
-let sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+let sessionStats={correct:0,wrong:0,improved:[],famChanges:{},_masteryAdvanced:{}};
 let reviewActiveTab='today';
 
 function defaultVp(){
@@ -457,7 +435,20 @@ function firstIncompleteIdx(){
   return DAILY_ORDER.length;
 }
 function verbsEligibleForReview(){
-  return DAILY_ORDER.filter(it=>getVp(it).completedStages.stage6).map(it=>getVerb(it)).filter(Boolean);
+  return DAILY_ORDER.filter(it=>{
+    const vp=getVp(it);
+    if(!vp.completedStages.stage6) return false;
+    /* إذا completedLesson غير مضبوط (بيانات قديمة)، أصلحه */
+    if(!vp.completedLesson){
+      vp.completedLesson=true;
+      vp.lessonCompletedAt=vp.lessonCompletedAt||Date.now();
+      if(!vp.nextReview||vp.nextReview===0){
+        vp.masteryLevel=vp.masteryLevel||0;
+        scheduleReview(vp);
+      }
+    }
+    return true;
+  }).map(it=>getVerb(it)).filter(Boolean);
 }
 function countDueReviews(){
   const now=Date.now();
@@ -604,16 +595,20 @@ function buildSession(){
 function normalizeAr(s){
   if(!s)return'';
   return s.trim()
-    .replace(/[\u064B-\u065F\u0670]/g,'')
-    .replace(/[أإآ]/g,'ا')
-    .replace(/ة/g,'ه')
-    .replace(/^ال/,'')
+    .replace(/[\u064B-\u065F\u0670]/g,'')  /* strip harakat */
     .replace(/\s+/g,' ')
     .toLowerCase();
 }
 function normalizeIt(s){
   if(!s)return'';
-  return s.trim().toLowerCase().replace(/[.,!?؛؟]/g,'').replace(/\s+/g,' ');
+  return s.trim().toLowerCase()
+    .replace(/[.,!?؛؟;:]/g,'')
+    .replace(/[àáâã]/g,'a')
+    .replace(/[èéêë]/g,'e')
+    .replace(/[ìíîï]/g,'i')
+    .replace(/[òóôõ]/g,'o')
+    .replace(/[ùúûü]/g,'u')
+    .replace(/\s+/g,' ');
 }
 function stripPronounIt(s,pronounIt){
   const n=normalizeIt(s);const p=pronounIt.toLowerCase();
@@ -623,16 +618,25 @@ function stripPronounIt(s,pronounIt){
 function checkItalianAnswer(input,expectedFull,pronounIt){
   const a=normalizeIt(input),e=normalizeIt(expectedFull);
   if(a===e)return true;
-  if(stripPronounIt(a,pronounIt)===stripPronounIt(e,pronounIt))return true;
-  /* قبول Lui أو Lei إذا كان الضمير محدد (من resolvedPronoun) أو Lui/Lei */
-  const pronounLower=pronounIt.toLowerCase();
-  if(pronounLower==='lui'||pronounLower==='lei'||pronounLower==='lui/lei'){
-    const base=[e,
-      e.replace(/^lui\/lei\s*/,'lui ').trimEnd(),
-      e.replace(/^lui\/lei\s*/,'lei ').trimEnd(),
-      e.replace(/^lui\s*/,'').trimEnd(),
-      e.replace(/^lei\s*/,'').trimEnd()
-    ];
+  const aStrip=stripPronounIt(a,pronounIt);
+  const eStrip=stripPronounIt(e,pronounIt);
+  if(aStrip===eStrip)return true;
+  /* قبول الجملة بدون مُعدِّل زمني */
+  const aStripFull=aStrip;
+  /* لو الإجابة أقصر: المتوقع يحتوي على الإجابة كاملة */
+  if(aStripFull.length>2 && eStrip.includes(aStripFull)) return true;
+  /* لو الإجابة أطول: الإجابة تحتوي على المتوقع كاملاً */
+  if(eStrip.length>2 && aStripFull.includes(eStrip)) return true;
+  /* قبول بناءً على كلمات مشتركة: لو 70%+ من كلمات الإجابة موجودة في المتوقع */
+  const aWords=aStripFull.split(' ').filter(w=>w.length>1);
+  const eWords=eStrip.split(' ').filter(w=>w.length>1);
+  if(aWords.length>=2){
+    const matched=aWords.filter(w=>eWords.includes(w)).length;
+    if(matched/aWords.length>=0.75 && matched>=2) return true;
+  }
+  /* قبول Lui أو Lei بدلاً من "Lui/Lei" + قبول partito أو partita (essere verbs) */
+  if(pronounIt.toLowerCase()==='lui/lei'){
+    const base=[e,e.replace('lui/lei','lui'),e.replace('lui/lei','lei')];
     const expanded=[];
     base.forEach(v=>{
       expanded.push(v);
@@ -640,7 +644,7 @@ function checkItalianAnswer(input,expectedFull,pronounIt){
     });
     for(const ev of expanded){
       if(a===ev)return true;
-      const pr2=ev.startsWith('lui')?'lui':ev.startsWith('lei')?'lei':pronounLower;
+      const pr2=ev.startsWith('lui')?'lui':ev.startsWith('lei')?'lei':pronounIt.toLowerCase();
       if(stripPronounIt(a,pr2)===stripPronounIt(ev,pr2))return true;
     }
   }
@@ -703,6 +707,20 @@ function checkArabicAnswer(input,verb,pIdx,tense){
   /* قبول الكلمة الجذرية للفعل أو المعنى فقط إذا كانت طويلة كفاية (≥3 حروف) لتجنب false positives */
   const core=normalizeAr(verb.as);
   if(core&&core.length>=3&&ans===core)return true;
+
+  /* قبول مرن: الإجابة تحتوي على الفعل المصرّف العربي بأي شكل معقول */
+  const conjugatedForm = normalizeAr(getArPres(verb,pi));
+  const conjugatedPast = tense==='past' ? normalizeAr(genArPastConj(verb,pi).split('/')[0]) : '';
+  if(conjugatedForm && conjugatedForm.length>=3){
+    /* الإجابة تحتوي على التصريف كاملاً (وليس جزء منه فقط) */
+    if(ans.includes(conjugatedForm)) return true;
+  }
+  if(conjugatedPast && conjugatedPast.length>=3 && ans.includes(conjugatedPast)) return true;
+
+  /* قبول معنى الفعل الأساسي لو الإجابة تحتوي على المعنى الجوهري */
+  const verbAr = normalizeAr(verb.ar);
+  if(verbAr && verbAr.length>=3 && ans.includes(verbAr)) return true;
+
   return false;
 }
 
@@ -731,12 +749,17 @@ function recordAnswer(correct,item){
       vp.weakTenses=vp.weakTenses.filter(t=>t!==item.tense);
     }
 
-    /* Mastery progression ONLY happens on review items */
+    /* Mastery progression ONLY happens on review items — once per verb per session */
     if(item.review){
       vp.successfulReviews=(vp.successfulReviews||0)+1;
       vp.lastReview=Date.now();
-      if(vp.masteryLevel<4)vp.masteryLevel=(vp.masteryLevel|0)+1;
-      scheduleReview(vp);
+      /* Guard: only advance masteryLevel once per verb per session */
+      if(!sessionStats._masteryAdvanced) sessionStats._masteryAdvanced={};
+      if(!sessionStats._masteryAdvanced[item.verb.it]){
+        sessionStats._masteryAdvanced[item.verb.it]=true;
+        if(vp.masteryLevel<4) vp.masteryLevel=(vp.masteryLevel|0)+1;
+        scheduleReview(vp); /* schedule once, based on the new level */
+      }
     }
   }else{
     sessionStats.wrong++;
@@ -752,10 +775,15 @@ function recordAnswer(correct,item){
     if(item.review){
       vp.failedReviews=(vp.failedReviews||0)+1;
       vp.lastReview=Date.now();
-      /* Drop one level (not to zero) and rebuild interval */
-      vp.masteryLevel=Math.max(0,(vp.masteryLevel|0)-1);
-      vp.successfulReviews=Math.max(0,(vp.successfulReviews||0)-1);
-      scheduleReview(vp);
+      /* Guard: only drop masteryLevel once per verb per session */
+      if(!sessionStats._masteryAdvanced) sessionStats._masteryAdvanced={};
+      if(!sessionStats._masteryAdvanced[item.verb.it]){
+        sessionStats._masteryAdvanced[item.verb.it]=true;
+        /* Drop one level (not to zero) and rebuild interval */
+        vp.masteryLevel=Math.max(0,(vp.masteryLevel|0)-1);
+        vp.successfulReviews=Math.max(0,(vp.successfulReviews||0)-1);
+        scheduleReview(vp);
+      }
     }
   }
 
@@ -794,7 +822,9 @@ function markStageProgress(item){
 function speak(text){
   if(!appState.settings.tts||!window.speechSynthesis)return;
   window.speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(String(text));u.lang='it-IT';u.rate=0.9;
+  /* Lui/Lei لا تُنطق بشكل صحيح — استبدلها بـ Lui */
+  const cleanText=String(text).replace(/Lui\/Lei/g,'Lui');
+  const u=new SpeechSynthesisUtterance(cleanText);u.lang='it-IT';u.rate=0.9;
   window.speechSynthesis.speak(u);
 }
 
@@ -965,29 +995,24 @@ function renderQuestion(){
     const tense=item.tense||'pres';
     const tenseLabel=tense==='pres'?'المضارع':tense==='past'?'الماضي':'المستقبل';
     const conjForm=getConjugation(item.verb,item.pronounIdx,tense);
-    /* للـ pIdx=2: اختر Lui أو Lei عشوائياً ثابتاً لهذا السؤال */
-    let displayPronoun=pr.it;
-    if(item.pronounIdx===2){
-      const seed3=(item.stage||0)+(session?session.idx:0);
-      displayPronoun=(seed3%2===1)?'Lei':'Lui';
-    }
     html+=`<h2 class="q-title">صرّف الفعل — ${tenseLabel}</h2>`;
+    const prSpoken=pr.it==='Lui/Lei'?'Lui':pr.it;
     html+=`<div class="word-card" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
     if(isIrreg)html+=`<div class="irreg-note">⚠️ فعل شاذ</div>`;
-    html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${displayPronoun}</span></div>`;
-    html+=`<input id="write-input" placeholder="${displayPronoun} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
-    if(item.pronounIdx===2)html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
-    item._expected=displayPronoun+' '+conjForm;
+    html+=`<div style="text-align:center;margin-bottom:10px"><span class="pronoun-pill">${pr.it}</span></div>`;
+    html+=`<input id="write-input" placeholder="${pr.it} …" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false">`;
+    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
+    item._expected=pr.it+' '+conjForm;
   }
 
   /* ── COPY_IT (Stage 4) — يرى الجملة الإيطالية + معنى كل كلمة بالعربي، وينسخها بالإيطالي ── */
   else if(item.type==='copy_it'){
     const pr=data.pronouns[item.pronounIdx];
     const conj=getConjugation(item.verb,item.pronounIdx,'pres');
-    const resolvedPr=item.sentence.resolvedPronoun||pr.it;
+    /* استخراج الـ modifier إن وجد + الكائن */
     const sentClean=item.sentence.it.replace(/\.$/,'');
-    /* نأخذ بقية الجملة بعد الفعل المصرف — نستخدم الضمير المحلول */
-    const afterVerb=sentClean.replace(resolvedPr+' '+conj+' ','').trim();
+    /* نأخذ بقية الجملة بعد الفعل المصرف */
+    const afterVerb=sentClean.replace(pr.it+' '+conj+' ','').trim();
     /* فصل الـ modifier عن الكائن — يبحث في كل BOOK_TIME_WORDS */
     let objectPart=afterVerb,modifierPart='';
     const allTimeWords=[...BOOK_TIME_WORDS.map(t=>t.it),...MODIFIERS];
@@ -999,13 +1024,9 @@ function renderQuestion(){
       }
     }
     /* بناء جدول كلمة-بكلمة */
-    const pronounArResolved=item.sentence.isFeminine?'هي':(item.pronounIdx===2?'هو':pr.ar);
-    const conjArResolved=item.sentence.isFeminine!=null&&item.pronounIdx===2
-      ? getArPres(item.verb,item.pronounIdx).split('/')[item.sentence.isFeminine?1:0]||getArPres(item.verb,item.pronounIdx).split('/')[0]
-      : getArPres(item.verb,item.pronounIdx);
     const wordPairs=[
-      {it:resolvedPr,ar:pronounArResolved},
-      {it:conj,ar:conjArResolved}
+      {it:pr.it,ar:pr.ar},
+      {it:conj,ar:getArPres(item.verb,item.pronounIdx)}
     ];
     const compAs = item.sentence.compAs || item.verb.as;
     if(objectPart)wordPairs.push({it:objectPart,ar:compAs});
@@ -1023,19 +1044,20 @@ function renderQuestion(){
       ? `<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;line-height:1.7;direction:rtl;text-align:right">${grammarNote}<\/div>`
       : '';
 
-    const speakSent=item.sentence.it.replace(/'/g,"\\'");
+    const speakSent=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
     html+=`<h2 class="q-title">انسخ الجملة بالإيطالي</h2>`;
     html+=`<p style="text-align:center;font-size:12px;color:var(--muted);margin:0 0 8px">معنى كل كلمة موضح أسفلها — اكتب الجملة كاملة بالإيطالي</p>`;
     html+=`<div class="word-card" onclick="speak('${speakSent}')" style="font-size:18px;padding:14px">🔊 ${item.sentence.it}</div>`;
     html+=`<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#f8f9fa;padding:10px;border-radius:12px;margin-bottom:10px;direction:ltr">${wordsHtml}</div>`;
     html+=grammarHtml;
+    if(pr.it==='Lui/Lei')html+=`<p style="text-align:center;font-size:11px;color:var(--muted);margin:0 0 6px">يمكنك كتابة <b>Lui</b> أو <b>Lei</b></p>`;
     html+=`<input id="write-input" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="اكتب الجملة الإيطالية...">`;
     item._expected=item.sentence.it;
   }
 
   /* ── IT_TO_AR (Stage 5) ── */
   else if(item.type==='it_to_ar'){
-    const speakSentIt=item.sentence.it.replace(/'/g,"\\'");
+    const speakSentIt=item.sentence.it.replace(/Lui\/Lei/g,'Lui').replace(/'/g,"\\'");
     html+=`<h2 class="q-title">ترجم إلى العربية</h2>`;
     html+=`<div class="word-card" onclick="speak('${speakSentIt}')">${item.sentence.it}</div>`;
     html+=`<input id="write-input" placeholder="المعنى بالعربي" autocomplete="off" autocorrect="off" spellcheck="false">`;
@@ -1058,7 +1080,12 @@ function renderQuestion(){
     const parts=sentIt.split(' ');
     /* البحث عن الكلمة المطابقة للتصريف */
     let bi=-1;
-    for(let i=1;i<parts.length;i++){if(normalizeIt(parts[i])===normalizeIt(blank)){bi=i;break;}}
+    const blankN=normalizeIt(blank);
+    for(let i=1;i<parts.length;i++){
+      if(normalizeIt(parts[i])===blankN){bi=i;break;}
+      /* partial: word contains the conjugation (e.g. "parlo," vs "parlo") */
+      if(normalizeIt(parts[i]).includes(blankN)&&blankN.length>2){bi=i;break;}
+    }
     if(bi===-1)bi=1; /* fallback */
     const displayed=parts.map((w,i)=>i===bi?`<span style="background:var(--blue-lt);padding:0 8px;border-radius:6px;color:var(--blue);font-weight:800">______</span>`:w).join(' ');
     html+=`<h2 class="q-title">أكمل الفراغ</h2>`;
@@ -1232,16 +1259,15 @@ function handleMainAction(){
     const ans = normalizeAr($('write-input').value);
     /* أولاً: تطابق كامل مع دالة checkArabicAnswer */
     ok = checkArabicAnswer($('write-input').value, item.verb, item.pronounIdx, item.sentence.tense);
-    /* ثانياً: قبول مرن — لازم يحتوي على تصريف الفعل العربي + كلمة محتوى (مش حروف عزل) */
-    if(!ok && ans.length > 3){
+    /* ثانياً: قبول مرن — يكفي أن تحتوي الإجابة على الفعل العربي المصرّف */
+    if(!ok && ans.length > 2){
       const verbFormAr = normalizeAr(getArPres(item.verb, item.pronounIdx));
-      const pastFormAr = normalizeAr(genArPastConj(item.verb, item.pronounIdx));
-      const hasVerb = ans.includes(verbFormAr) || ans.includes(pastFormAr);
-      /* كلمة محتوى = أي جزء من الجملة العربية يزيد عن 3 حروف، مش حروف ربط */
-      const stopWords = new Set(['في','من','على','إلى','مع','عن','كل','هذا','هذه']);
-      const sentParts = normalizeAr(item.sentence.ar).split(' ').filter(w=>w.length>3&&!stopWords.has(w));
-      const hasContent = sentParts.some(p=>ans.includes(p));
-      if(hasVerb && hasContent) ok = true;
+      const pastFormAr = normalizeAr(genArPastConj(item.verb, item.pronounIdx).split('/')[0]);
+      const verbBase   = normalizeAr(item.verb.ar);
+      if((verbFormAr && verbFormAr.length>=3 && ans.includes(verbFormAr)) ||
+         (pastFormAr && pastFormAr.length>=3 && ans.includes(pastFormAr)) ||
+         (verbBase   && verbBase.length>=3   && ans.includes(verbBase)))
+        ok = true;
     }
     expected = item.sentence.ar;
   }
@@ -1273,6 +1299,11 @@ function handleMainAction(){
     }
     if(item.sentence){
       extra+=`<div class="example-box" onclick="speak('${item.sentence.it.replace(/'/g,"\\'")}')">${item.sentence.it}<span class="example-ar">${item.sentence.ar}</span></div>`;
+    }else if(item.type==='conj_drill'&&item.pronounIdx!=null){
+      /* review conj_drill بدون sentence — اعرض الضمير + التصريف */
+      const _pr2=data.pronouns[item.pronounIdx];
+      const _conj2=getConjugation(item.verb,item.pronounIdx,item.tense||'pres');
+      extra+=`<div class="example-box" onclick="speak('${_pr2.it} ${_conj2}')" dir="ltr">${_pr2.it} <b>${_conj2}</b></div>`;
     }else if(item.type!=='mcq_ar'&&item.type!=='write_ar'){
       extra+=`<div class="example-box" onclick="speak('${item.verb.it}')">${item.verb.it}</div>`;
     }
@@ -1467,7 +1498,7 @@ function startReviewSession(){
   const queue=[];
   pool.slice(0,5).forEach((verb,i)=>buildReviewItems(verb,i).forEach(it=>queue.push(it)));
   session={sessionIndex:-1,verb:pool[0],queue,idx:0,stageDone:{},isReviewOnly:true};
-  sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+  sessionStats={correct:0,wrong:0,improved:[],famChanges:{},_masteryAdvanced:{}};
   showScreen('session');
   renderQuestion();
 }
@@ -1588,7 +1619,7 @@ function renderReviewScreen(){
       if(!verb)return;
       const queue=buildReviewItems(verb,0);
       session={sessionIndex:-1,verb,queue,idx:0,stageDone:{},isReviewOnly:true};
-      sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+      sessionStats={correct:0,wrong:0,improved:[],famChanges:{},_masteryAdvanced:{}};
       showScreen('session');
       renderQuestion();
     };
@@ -1611,7 +1642,7 @@ function famColor(vp){
 function startSession(){
   session=buildSession();
   if(!session){alert('أكملت كل الأفعال! 🎉');return;}
-  if(!appState.inProgressSession)sessionStats={correct:0,wrong:0,improved:[],famChanges:{}};
+  if(!appState.inProgressSession)sessionStats={correct:0,wrong:0,improved:[],famChanges:{},_masteryAdvanced:{}};
   showScreen('session');
   renderQuestion();
 }
@@ -1648,8 +1679,10 @@ function finishSession(){
     return`<div class="improved-chip">${it} +${delta} مستوى → ${famLevelAr(vAfter.familiarityLevel)}</div>`;
   }).filter(Boolean).join('');
 
-  /* موعد المراجعة */
-  const nextReviewDate=new Date(vp.nextReview).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  /* موعد المراجعة — فقط للجلسات غير المراجعة أو الفعل الأول */
+  const nextReviewDate=vp.nextReview
+    ? new Date(vp.nextReview).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})
+    : '—';
 
   $('screen-end').innerHTML=`
     <div class="end-hero">
